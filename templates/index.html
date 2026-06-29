@@ -403,6 +403,10 @@
             <button class="dl-btn" id="btn-step" disabled onclick="dl('step')">STEP</button>
             <button class="dl-btn" id="btn-stl"  disabled onclick="dl('stl')">STL</button>
           </div>
+          <div class="dl-group">
+            <span class="dl-group-label">Mold</span>
+            <button class="dl-btn" id="btn-mold" disabled onclick="makeMold()">⬡ Mold STL</button>
+          </div>
         </div>
       </div>
     </div>
@@ -622,6 +626,7 @@
       document.getElementById('btn-3mf').disabled  = !d.has_3mf;
       document.getElementById('btn-step').disabled = !d.has_step;
       document.getElementById('btn-glb').disabled  = !d.has_glb;
+      document.getElementById('btn-mold').disabled = false;
     }
 
     // ── History ────────────────────────────────────────────────────────
@@ -681,7 +686,7 @@
       setStatus('Generating…');
       spinner(true);
       document.getElementById('send-btn').disabled  = true;
-      ['btn-stl','btn-3mf','btn-step','btn-glb'].forEach(id =>
+      ['btn-stl','btn-3mf','btn-step','btn-glb','btn-mold'].forEach(id =>
         document.getElementById(id).disabled = true);
 
       try {
@@ -750,6 +755,38 @@
 
     function dl(fmt) {
       if (currentModel) window.location.href = `/download/${currentModel}/${fmt}`;
+    }
+
+    async function makeMold() {
+      if (!currentModel) return;
+      const btn = document.getElementById('btn-mold');
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Building…';
+      setStatus('Generating mold (may take ~10 s)…');
+      try {
+        const resp = await fetch(`/mold/${currentModel}`);
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({ error: resp.statusText }));
+          setStatus('Mold error: ' + body.error);
+          return;
+        }
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'mold.stl';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('Mold downloaded — print both halves, assemble for casting');
+      } catch (e) {
+        setStatus('Mold failed: ' + e.message);
+      } finally {
+        btn.textContent = orig;
+        btn.disabled    = false;
+      }
     }
 
     if ('serviceWorker' in navigator) {

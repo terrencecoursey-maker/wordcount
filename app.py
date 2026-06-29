@@ -60,6 +60,7 @@ result = (
 # Per-session conversation history and model history
 _sessions: dict[str, list] = {}
 _history:  dict[str, list] = {}  # session_id → [{model_id, prompt, ts, has_*}]
+_codes:    dict[str, str]  = {}  # model_id → CadQuery source (for mold generation)
 
 _ALLOWED_IMPORTS = {"cadquery", "math"}
 
@@ -177,6 +178,7 @@ def chat():
 
     try:
         result = _run_cadquery(code)
+        _codes[model_id] = code
 
         stl_path = os.path.join(MODELS_DIR, f"{model_id}.stl")
         exporters.export(result, stl_path)
@@ -213,6 +215,65 @@ def chat():
             "error":      str(exc),
             "history":    _history.get(session_id, []),
         })
+
+
+def _make_mold_stl(code: str, model_id: str) -> str:
+    """Build a two-part split mold and write <model_id>_mold.stl; return path."""
+    import math as _math
+    namespace = {"cq": cq, "math": _math, "__builtins__": _SAFE_BUILTINS}
+    exec(compile(code, "<ai_generated>", "exec"), namespace)  # noqa: S102
+    result = namespace["result"]
+
+    bb  = result.val().BoundingBox()
+    cx  = (bb.xmin + bb.xmax) / 2
+    cy  = (bb.ymin + bb.ymax) / 2
+    cz  = (bb.zmin + bb.zmax) / 2
+    sx  = bb.xmax - bb.xmin
+    sy  = bb.ymax - bb.ymin
+    sz  = bb.zmax - bb.zmin
+
+    wall = max(max(sx, sy, sz) * 0.25, 8)   # ≥8 mm walls
+    mw   = sx + 2 * wall                     # mold outer width
+    md   = sy + 2 * wall                     # mold outer depth
+    hh   = sz / 2 + wall                     # height of each half
+
+    # ── bottom half: box [zmin−wall … cz], cavity carved by object ──────────
+    bot = (
+        cq.Workplane("XY")
+        .box(mw, md, hh)
+        .translate((cx, cy, bb.zmin - wall + hh / 2))
+        .cut(result)
+        .translate((-cx - mw / 2 - wall / 2, -cy, -(bb.zmin - wall)))
+    )
+
+    # ── top half: box [cz … zmax+wall], cavity carved by object ─────────────
+    top = (
+        cq.Workplane("XY")
+        .box(mw, md, hh)
+        .translate((cx, cy, cz + hh / 2))
+        .cut(result)
+        .translate((-cx + mw / 2 + wall / 2, -cy, -cz))
+    )
+
+    compound  = cq.Compound.makeCompound([bot.val(), top.val()])
+    mold_path = os.path.join(MODELS_DIR, f"{model_id}_mold.stl")
+    exporters.export(compound, mold_path)
+    return mold_path
+
+
+@app.route("/mold/<model_id>")
+def make_mold(model_id: str):
+    code = _codes.get(model_id)
+    if not code:
+        return jsonify({"error": "Model code not found — regenerate the model first"}), 404
+    mold_path = os.path.join(MODELS_DIR, f"{model_id}_mold.stl")
+    if not os.path.exists(mold_path):
+        try:
+            _make_mold_stl(code, model_id)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 500
+    return send_file(mold_path, as_attachment=True,
+                     download_name="mold.stl", mimetype="model/stl")
 
 
 @app.route("/model/<model_id>.stl")
