@@ -28,7 +28,23 @@ ANTHROPIC_API_KEY=sk-ant-... python app.py
 
 Then open http://localhost:5000 in your browser.
 
-## Deploy with Docker
+## Deploy to Railway
+
+```bash
+npm install -g @railway/cli   # if you don't have it
+railway login
+railway init                  # or: railway link, if the project already exists
+railway variables --set ANTHROPIC_API_KEY=sk-ant-...
+railway up
+```
+
+Railway auto-detects `railway.toml` and builds from the `Dockerfile`. It
+injects its own `PORT` env var at runtime, which `app.py` already reads
+(`os.environ.get("PORT", 5000)`), and serves the app over HTTPS by default —
+required for installing it as a PWA on your phone. Once deployed, open the
+generated `*.up.railway.app` URL on your phone and use "Add to Home Screen".
+
+## Deploy with Docker (any host)
 
 ```bash
 docker build -t ai3d-builder .
@@ -36,10 +52,8 @@ docker run -p 5000:5000 -e ANTHROPIC_API_KEY=sk-ant-... ai3d-builder
 ```
 
 This runs the app behind gunicorn. Deploy the image to any Docker-capable
-host (Railway, Render, Fly.io, a VPS, etc.) and set `ANTHROPIC_API_KEY` as a
-runtime environment variable/secret on that platform — installing the app as
-a PWA on your phone requires the deployed URL to be served over HTTPS, which
-these platforms provide by default.
+host (Render, Fly.io, a VPS, etc.) and set `ANTHROPIC_API_KEY` as a runtime
+environment variable/secret on that platform.
 
 ## Example prompts
 
