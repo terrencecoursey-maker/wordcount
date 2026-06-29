@@ -2,43 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>AI 3D Model Builder</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0d0d1a;
-      --panel:    #13132a;
-      --border:   #1e1e4a;
-      --accent:   #4f6ef7;
-      --red:      #e94560;
-      --text:     #dde1ff;
-      --muted:    #6670aa;
-      --code-bg:  #070710;
-      --dim-x:    #ff5555;
-      --dim-y:    #55cc55;
-      --dim-z:    #5599ff;
+      --bg:      #0d0d1a;
+      --panel:   #13132a;
+      --border:  #1e1e4a;
+      --accent:  #4f6ef7;
+      --red:     #e94560;
+      --text:    #dde1ff;
+      --muted:   #6670aa;
+      --code-bg: #070710;
+      --dim-x:   #ff5555;
+      --dim-y:   #55cc55;
+      --dim-z:   #5599ff;
+      --tab-h:   54px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      display: flex; flex-direction: column;
     }
 
+    /* ── Header ── */
     header {
-      padding: 10px 20px;
+      padding: 10px 16px;
       background: var(--panel);
       border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      display: flex; align-items: center; gap: 10px;
       flex-shrink: 0;
+      padding-top: max(10px, env(safe-area-inset-top));
     }
     header h1 { font-size: 1rem; font-weight: 600; }
     .badge {
@@ -46,15 +49,19 @@
       padding: 2px 8px; border-radius: 999px;
     }
 
-    .layout { display: flex; flex: 1; overflow: hidden; }
+    /* ── Layout ── */
+    .layout {
+      display: flex; flex: 1; overflow: hidden;
+      position: relative;
+    }
 
-    /* ── Left panel ── */
+    /* ── Left / Chat panel ── */
     .left {
       width: 360px; min-width: 260px;
       display: flex; flex-direction: column;
       border-right: 1px solid var(--border);
       background: var(--panel);
-      overflow: hidden;
+      flex-shrink: 0;
     }
 
     .messages {
@@ -90,40 +97,37 @@
     .code-header button:hover { text-decoration: underline; }
     pre {
       padding: 10px; overflow-x: auto; font-size: .72rem;
-      font-family: "SF Mono", "Fira Code", monospace;
+      font-family: "SF Mono","Fira Code",monospace;
       color: #a5b4fc; max-height: 200px; overflow-y: auto; white-space: pre;
     }
 
     /* ── History panel ── */
     .history-panel {
       border-top: 1px solid var(--border);
-      background: var(--bg);
-      flex-shrink: 0;
+      background: var(--bg); flex-shrink: 0;
     }
     .history-header {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 6px 12px;
+      padding: 7px 12px;
       font-size: .72rem; color: var(--muted);
       border-bottom: 1px solid var(--border);
       cursor: pointer; user-select: none;
     }
     .history-header:hover { color: var(--text); }
-    .history-header .hist-toggle { font-size: .65rem; }
     .hist-clear {
       background: none; border: none; color: var(--muted);
-      cursor: pointer; font-size: .68rem; padding: 0;
+      cursor: pointer; font-size: .68rem; padding: 0; min-height: 32px; min-width: 44px;
+      text-align: right;
     }
     .hist-clear:hover { color: var(--red); }
-    .history-list {
-      max-height: 145px; overflow-y: auto;
-    }
+    .history-list { max-height: 140px; overflow-y: auto; }
     .history-list::-webkit-scrollbar { width: 3px; }
     .history-list::-webkit-scrollbar-thumb { background: var(--border); }
     .history-item {
       display: flex; align-items: baseline; gap: 7px;
-      padding: 6px 12px; cursor: pointer;
+      padding: 8px 12px; cursor: pointer;
       border-bottom: 1px solid var(--border);
-      font-size: .78rem;
+      font-size: .78rem; min-height: 40px;
       transition: background .1s;
     }
     .history-item:hover  { background: var(--panel); }
@@ -132,31 +136,34 @@
     .hist-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .hist-time { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
 
-    /* ── Input ── */
+    /* ── Input row ── */
     .input-row {
-      padding: 10px 12px; border-top: 1px solid var(--border);
+      padding: 10px 12px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
       display: flex; gap: 8px; flex-shrink: 0;
     }
     textarea {
       flex: 1; background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: 8px; padding: 8px 12px;
-      font-size: .875rem; resize: none; height: 58px; font-family: inherit;
+      color: var(--text); border-radius: 8px; padding: 9px 12px;
+      font-size: .9rem; resize: none; height: 58px; font-family: inherit;
       transition: border-color .15s;
     }
     textarea:focus { outline: none; border-color: var(--accent); }
     #send-btn {
       background: var(--accent); color: #fff; border: none;
-      border-radius: 8px; padding: 0 16px; cursor: pointer;
+      border-radius: 8px; padding: 0 18px; cursor: pointer;
       font-size: .9rem; transition: opacity .15s;
+      min-width: 64px; min-height: 44px;
     }
     #send-btn:disabled { opacity: .4; cursor: not-allowed; }
-    #send-btn:not(:disabled):hover { opacity: .85; }
+    #send-btn:not(:disabled):active { opacity: .75; }
 
     /* ── Viewer ── */
-    .viewer { flex: 1; display: flex; flex-direction: column; position: relative; }
+    .viewer { flex: 1; display: flex; flex-direction: column; }
 
     #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
-    canvas { display: block; }
+    canvas { display: block; touch-action: none; }
 
     #empty {
       position: absolute; inset: 0;
@@ -168,35 +175,31 @@
     #empty p   { color: var(--muted); font-size: .85rem; }
     #empty small { color: #333; font-size: .75rem; }
 
-    /* Floating dimension labels (3D projected) */
+    /* Floating dimension labels */
     .ann-label {
       position: absolute; top: 0; left: 0;
-      background: rgba(13,13,26,.88);
-      border: 1px solid;
-      border-radius: 3px;
-      padding: 2px 7px;
+      background: rgba(13,13,26,.88); border: 1px solid;
+      border-radius: 3px; padding: 2px 7px;
       font-size: .68rem; font-family: "SF Mono","Fira Code",monospace;
-      color: var(--text); pointer-events: none; white-space: nowrap;
-      display: none;
+      color: var(--text); pointer-events: none; white-space: nowrap; display: none;
     }
 
-    /* Dimension overlay box (top-right corner) */
+    /* Dimension corner overlay */
     #dims-overlay {
-      position: absolute; top: 12px; right: 12px;
+      position: absolute; top: 10px; right: 10px;
       background: rgba(13,13,26,.82);
       border: 1px solid var(--border); border-radius: 6px;
-      padding: 8px 12px; pointer-events: none;
+      padding: 7px 11px; pointer-events: none;
       font-family: "SF Mono","Fira Code",monospace;
-      font-size: .75rem; display: none;
-      line-height: 1.7;
+      font-size: .75rem; display: none; line-height: 1.7;
     }
-    .dim-row { display: flex; gap: 8px; align-items: baseline; }
-    .dim-lbl { font-size: .65rem; font-weight: 700; width: 12px; }
+    .dim-row { display: flex; gap: 7px; align-items: baseline; }
+    .dim-lbl { font-size: .63rem; font-weight: 700; width: 12px; }
     .dim-lbl.x { color: var(--dim-x); }
     .dim-lbl.y { color: var(--dim-y); }
     .dim-lbl.z { color: var(--dim-z); }
-    .dim-val   { color: var(--text); }
-    .dim-unit  { color: var(--muted); font-size: .65rem; }
+    .dim-val  { color: var(--text); }
+    .dim-unit { color: var(--muted); font-size: .63rem; }
 
     /* ── Toolbar ── */
     .toolbar {
@@ -213,31 +216,110 @@
     .dl-groups {
       display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
     }
-    .dl-group {
-      display: flex; align-items: center; gap: 5px;
-    }
-    .dl-group-label {
-      font-size: .67rem; color: var(--muted); white-space: nowrap;
-    }
+    .dl-group { display: flex; align-items: center; gap: 5px; }
+    .dl-group-label { font-size: .67rem; color: var(--muted); white-space: nowrap; }
     .dl-btn {
       background: transparent; color: var(--text);
-      border: 1px solid var(--border); padding: 4px 11px;
-      border-radius: 5px; font-size: .75rem; cursor: pointer;
-      transition: background .12s, border-color .12s, color .12s;
+      border: 1px solid var(--border); padding: 5px 12px;
+      border-radius: 5px; font-size: .78rem; cursor: pointer;
       white-space: nowrap;
+      transition: background .12s, border-color .12s, color .12s;
+      min-height: 34px;
     }
-    .dl-btn:not(:disabled):hover {
-      background: var(--accent); border-color: var(--accent); color: #fff;
-    }
+    .dl-btn:not(:disabled):hover  { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .dl-btn:not(:disabled):active { background: var(--accent); border-color: var(--accent); color: #fff; opacity: .8; }
     .dl-btn:disabled { opacity: .28; cursor: not-allowed; }
 
     .spinner {
       width: 13px; height: 13px;
       border: 2px solid var(--border); border-top-color: var(--accent);
       border-radius: 50%; animation: spin .7s linear infinite; display: none;
+      flex-shrink: 0;
     }
     .spinner.active { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tab bar (mobile only) ── */
+    .tab-bar {
+      display: none;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      padding: 8px 6px; border: none; background: transparent;
+      color: var(--muted); cursor: pointer; font-size: .72rem;
+      position: relative; min-height: var(--tab-h);
+      transition: color .15s;
+    }
+    .tab-btn svg { width: 22px; height: 22px; }
+    .tab-btn.active { color: var(--accent); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute; top: 0; left: 25%; right: 25%; height: 2px;
+      background: var(--accent); border-radius: 0 0 2px 2px;
+    }
+    /* Notification dot on View tab */
+    .tab-dot {
+      position: absolute; top: 8px; right: calc(50% - 18px);
+      width: 7px; height: 7px;
+      background: var(--accent); border-radius: 50%;
+      border: 1px solid var(--panel);
+      display: none;
+    }
+    .tab-dot.visible { display: block; }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 767px) {
+      .tab-bar { display: flex; }
+
+      .layout { flex-direction: column; }
+
+      .left {
+        width: 100%; min-width: unset;
+        border-right: none; border-bottom: 1px solid var(--border);
+        flex: 1; display: none;
+      }
+      .left.mob-show { display: flex; }
+
+      .viewer { display: none; flex: 1; }
+      .viewer.mob-show { display: flex; }
+
+      /* Compact toolbar on mobile */
+      .toolbar { padding: 6px 10px; gap: 4px; }
+      .toolbar-top { gap: 8px; }
+      .toolbar-hint { display: none; }
+
+      .dl-groups {
+        flex-wrap: nowrap; overflow-x: auto; gap: 8px;
+        padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+      }
+      .dl-groups::-webkit-scrollbar { height: 2px; }
+      .dl-group-label { display: none; }
+      .dl-btn { padding: 6px 13px; font-size: .8rem; min-height: 38px; }
+
+      /* Smaller dims overlay */
+      #dims-overlay { font-size: .68rem; padding: 5px 8px; top: 8px; right: 8px; }
+
+      /* Hide floating annotation labels — too crowded on small screens */
+      .ann-label { display: none !important; }
+
+      /* Taller textarea */
+      textarea { height: 50px; font-size: .875rem; }
+
+      .msg { font-size: .85rem; }
+      pre  { font-size: .7rem; }
+    }
+
+    /* Make sure desktop always shows both panels */
+    @media (min-width: 768px) {
+      .left   { display: flex !important; }
+      .viewer { display: flex !important; }
+      .tab-bar { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -247,8 +329,8 @@
   </header>
 
   <div class="layout">
-    <!-- ── Left panel ── -->
-    <div class="left">
+    <!-- ── Chat panel ── -->
+    <div class="left mob-show" id="left-panel">
       <div class="messages" id="messages">
         <div class="msg ai">
           Describe a 3D model in plain English and I'll generate it.<br><br>
@@ -257,13 +339,13 @@
         </div>
       </div>
 
-      <!-- History panel -->
+      <!-- History -->
       <div class="history-panel" id="history-panel" style="display:none">
         <div class="history-header" onclick="toggleHistory()">
-          <span>Model History <span class="hist-toggle" id="hist-arrow">▾</span></span>
-          <button class="hist-clear" onclick="event.stopPropagation(); clearHistory()">Clear</button>
+          <span>Model History <span id="hist-arrow">▾</span></span>
+          <button class="hist-clear" onclick="event.stopPropagation();clearHistory()">Clear</button>
         </div>
-        <div class="history-list" id="history-list" style="display:block"></div>
+        <div class="history-list" id="history-list"></div>
       </div>
 
       <div class="input-row">
@@ -275,7 +357,7 @@
     </div>
 
     <!-- ── 3D Viewer ── -->
-    <div class="viewer">
+    <div class="viewer" id="viewer-panel">
       <div id="canvas-wrap">
         <div id="empty">
           <svg width="72" height="72" viewBox="0 0 80 80" fill="none">
@@ -286,7 +368,6 @@
           <small>Describe a model in the chat to get started</small>
         </div>
 
-        <!-- Dimension annotation overlay -->
         <div id="dims-overlay">
           <div class="dim-row"><span class="dim-lbl x">W</span><span class="dim-val" id="dim-x">—</span><span class="dim-unit">mm</span></div>
           <div class="dim-row"><span class="dim-lbl y">D</span><span class="dim-val" id="dim-y">—</span><span class="dim-unit">mm</span></div>
@@ -303,11 +384,11 @@
         <div class="dl-groups">
           <div class="dl-group">
             <span class="dl-group-label">Slicer</span>
-            <button class="dl-btn" id="btn-3mf"  disabled onclick="dl('3mf')">Bambu · Orca  3MF</button>
+            <button class="dl-btn" id="btn-3mf"  disabled onclick="dl('3mf')">Bambu · Orca&nbsp;3MF</button>
           </div>
           <div class="dl-group">
             <span class="dl-group-label">Blender</span>
-            <button class="dl-btn" id="btn-glb"  disabled onclick="dl('glb')">GLB</button>
+            <button class="dl-btn" id="btn-glb"  disabled onclick="dl('glb')">Blender GLB</button>
           </div>
           <div class="dl-group">
             <span class="dl-group-label">CAD</span>
@@ -319,11 +400,45 @@
     </div>
   </div>
 
+  <!-- ── Tab bar (mobile only) ── -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="chat" onclick="switchTab('chat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Chat
+    </button>
+    <button class="tab-btn" data-tab="view" onclick="switchTab('view')">
+      <span class="tab-dot" id="view-dot"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+      3D View
+    </button>
+  </div>
+
   <script src="/static/three.min.js"></script>
   <script src="/static/STLLoader.js"></script>
   <script src="/static/OrbitControls.js"></script>
 
   <script>
+    // ── Mobile helpers ────────────────────────────────────────────────
+    const isMobile = () => window.innerWidth < 768;
+
+    function switchTab(tab) {
+      const left   = document.getElementById('left-panel');
+      const viewer = document.getElementById('viewer-panel');
+      left.classList.toggle('mob-show',   tab === 'chat');
+      viewer.classList.toggle('mob-show', tab === 'view');
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      if (tab === 'view') {
+        document.getElementById('view-dot').classList.remove('visible');
+        setTimeout(fitView, 30);   // canvas was hidden, needs resize
+      }
+    }
+
     // ── Three.js setup ────────────────────────────────────────────────
     const wrap = document.getElementById('canvas-wrap');
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -339,20 +454,24 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.screenSpacePanning = true;
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN,
+    };
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.35));
     const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
     sun.position.set(200, 400, 200);
     scene.add(sun);
-    const fill = new THREE.DirectionalLight(0x8899ff, 0.4);
-    fill.position.set(-150, -100, -100);
-    scene.add(fill);
+    const fillLight = new THREE.DirectionalLight(0x8899ff, 0.4);
+    fillLight.position.set(-150, -100, -100);
+    scene.add(fillLight);
 
-    const grid = new THREE.GridHelper(500, 40, 0x1e1e4a, 0x151528);
-    scene.add(grid);
+    scene.add(new THREE.GridHelper(500, 40, 0x1e1e4a, 0x151528));
 
     function fitView() {
       const W = wrap.clientWidth, H = wrap.clientHeight;
+      if (!W || !H) return;
       renderer.setSize(W, H);
       camera.aspect = W / H;
       camera.updateProjectionMatrix();
@@ -362,7 +481,7 @@
 
     // ── Dimension rulers ──────────────────────────────────────────────
     let mesh = null, bboxHelper = null, rulerGroup = null;
-    let annotLabels = [];   // [{el, pos}]
+    let annotLabels = [];
     let histOpen = true;
 
     function clearRulers() {
@@ -372,27 +491,26 @@
       annotLabels = [];
     }
 
-    function addRulerLine(from, to, color, tickSz) {
-      const dir = to.clone().sub(from).normalize();
-      const up  = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+    function addRulerLine(from, to, color, tickSz, labelText) {
+      const dir  = to.clone().sub(from).normalize();
+      const up   = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
       const perp = dir.clone().cross(up).normalize().multiplyScalar(tickSz);
-      const pts = [
+      const pts  = [
         from, to,
         from.clone().add(perp), from.clone().sub(perp),
         to.clone().add(perp),   to.clone().sub(perp),
       ];
-      const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const mat = new THREE.LineBasicMaterial({ color, opacity: 0.75, transparent: true });
-      rulerGroup.add(new THREE.LineSegments(geo, mat));
-
-      // Floating HTML label
+      rulerGroup.add(new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color, opacity: 0.75, transparent: true })
+      ));
       const mid = from.clone().lerp(to, 0.5);
       const el  = document.createElement('div');
       el.className = 'ann-label';
       el.style.borderColor = '#' + color.toString(16).padStart(6, '0');
+      el.textContent = labelText;
       wrap.appendChild(el);
       annotLabels.push({ el, pos: mid });
-      return el;
     }
 
     function buildRulers(box) {
@@ -401,32 +519,29 @@
       const offset = Math.max(size.x, size.y, size.z) * 0.28 + 8;
       const tick   = offset * 0.18;
 
-      // Semi-transparent bounding box wireframe
       bboxHelper = new THREE.Box3Helper(box, 0x334477);
       bboxHelper.material.opacity = 0.25;
       bboxHelper.material.transparent = true;
       scene.add(bboxHelper);
 
       rulerGroup = new THREE.Group();
-
-      // X = width (red)
-      const xF = new THREE.Vector3(box.min.x, box.min.y - offset, box.min.z - offset);
-      const xT = new THREE.Vector3(box.max.x, box.min.y - offset, box.min.z - offset);
-      addRulerLine(xF, xT, 0xff5555, tick).textContent = size.x.toFixed(1) + ' mm';
-
-      // Y = depth (green)
-      const yF = new THREE.Vector3(box.max.x + offset, box.min.y, box.min.z - offset);
-      const yT = new THREE.Vector3(box.max.x + offset, box.max.y, box.min.z - offset);
-      addRulerLine(yF, yT, 0x55cc55, tick).textContent = size.y.toFixed(1) + ' mm';
-
-      // Z = height (blue)
-      const zF = new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.min.z);
-      const zT = new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.max.z);
-      addRulerLine(zF, zT, 0x5599ff, tick).textContent = size.z.toFixed(1) + ' mm';
-
+      addRulerLine(
+        new THREE.Vector3(box.min.x, box.min.y - offset, box.min.z - offset),
+        new THREE.Vector3(box.max.x, box.min.y - offset, box.min.z - offset),
+        0xff5555, tick, size.x.toFixed(1) + ' mm'
+      );
+      addRulerLine(
+        new THREE.Vector3(box.max.x + offset, box.min.y, box.min.z - offset),
+        new THREE.Vector3(box.max.x + offset, box.max.y, box.min.z - offset),
+        0x55cc55, tick, size.y.toFixed(1) + ' mm'
+      );
+      addRulerLine(
+        new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.min.z),
+        new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.max.z),
+        0x5599ff, tick, size.z.toFixed(1) + ' mm'
+      );
       scene.add(rulerGroup);
 
-      // Update the corner overlay
       document.getElementById('dim-x').textContent = size.x.toFixed(1);
       document.getElementById('dim-y').textContent = size.y.toFixed(1);
       document.getElementById('dim-z').textContent = size.z.toFixed(1);
@@ -447,7 +562,7 @@
       }
     }
 
-    // ── Render loop ───────────────────────────────────────────────────
+    // ── Render loop ────────────────────────────────────────────────────
     (function loop() {
       requestAnimationFrame(loop);
       controls.update();
@@ -455,7 +570,7 @@
       renderer.render(scene, camera);
     })();
 
-    // ── STL loader ────────────────────────────────────────────────────
+    // ── STL loader ─────────────────────────────────────────────────────
     function loadSTL(url) {
       new THREE.STLLoader().load(url, geo => {
         if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
@@ -478,10 +593,16 @@
         document.getElementById('empty').style.display = 'none';
         setStatus('Model loaded');
         spinner(false);
+
+        // On mobile: notify View tab and auto-switch
+        if (isMobile()) {
+          document.getElementById('view-dot').classList.add('visible');
+          switchTab('view');
+        }
       }, undefined, () => { setStatus('Preview error'); spinner(false); });
     }
 
-    // ── App state ─────────────────────────────────────────────────────
+    // ── App state ──────────────────────────────────────────────────────
     let sessionId    = null;
     let currentModel = null;
 
@@ -495,8 +616,8 @@
       document.getElementById('btn-glb').disabled  = !d.has_glb;
     }
 
-    // ── History panel ─────────────────────────────────────────────────
-    let modelHistory = [];   // full array from server
+    // ── History ────────────────────────────────────────────────────────
+    let modelHistory = [];
 
     function toggleHistory() {
       histOpen = !histOpen;
@@ -525,23 +646,19 @@
         div.addEventListener('click', () => restoreModel(item, div));
         list.appendChild(div);
       });
-      // scroll the last item into view
       list.lastElementChild.scrollIntoView({ block: 'nearest' });
     }
 
     function restoreModel(item, el) {
       currentModel = item.model_id;
-      // update active state
       document.querySelectorAll('.history-item').forEach(e => e.classList.remove('active'));
       el.classList.add('active');
-      // update download buttons
       setDlButtons(item);
-      spinner(true);
-      setStatus('Restoring…');
+      spinner(true); setStatus('Loading…');
       loadSTL(`/model/${item.model_id}.stl`);
     }
 
-    // ── Chat ──────────────────────────────────────────────────────────
+    // ── Chat ───────────────────────────────────────────────────────────
     function onKey(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
     }
@@ -556,10 +673,8 @@
       setStatus('Generating…');
       spinner(true);
       document.getElementById('send-btn').disabled  = true;
-      document.getElementById('btn-stl').disabled   = true;
-      document.getElementById('btn-3mf').disabled   = true;
-      document.getElementById('btn-step').disabled  = true;
-      document.getElementById('btn-glb').disabled   = true;
+      ['btn-stl','btn-3mf','btn-step','btn-glb'].forEach(id =>
+        document.getElementById(id).disabled = true);
 
       try {
         const r = await fetch('/chat', {
@@ -571,8 +686,8 @@
         sessionId = d.session_id;
 
         if (d.success) {
-          currentModel = d.model_id;
-          modelHistory = d.history || [];
+          currentModel  = d.model_id;
+          modelHistory  = d.history || [];
           renderHistory();
           addMsg('Model generated — loading preview…' + codeBlock(d.code), 'ai');
           setDlButtons(d);
