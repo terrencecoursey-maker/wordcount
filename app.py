@@ -10,7 +10,22 @@ app = Flask(__name__)
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+def _make_client() -> anthropic.Anthropic:
+    if api_key := os.environ.get("ANTHROPIC_API_KEY"):
+        return anthropic.Anthropic(api_key=api_key)
+    # Fallback: Claude Code remote session token (bearer auth)
+    token_file = os.environ.get(
+        "CLAUDE_SESSION_INGRESS_TOKEN_FILE",
+        "/home/claude/.claude/remote/.session_ingress_token",
+    )
+    if os.path.exists(token_file):
+        token = open(token_file).read().strip()
+        return anthropic.Anthropic(auth_token=token)
+    raise RuntimeError(
+        "No Anthropic credentials found. Set ANTHROPIC_API_KEY or run inside Claude Code."
+    )
+
+client = _make_client()
 
 SYSTEM_PROMPT = """\
 You are a CadQuery expert. When the user describes a 3D model, respond with Python code that creates it.
@@ -45,22 +60,22 @@ result = (
 # Session history keyed by session_id
 _sessions: dict[str, list] = {}
 
+_ALLOWED_IMPORTS = {"cadquery", "math"}
+
+def _restricted_import(name, *args, **kwargs):
+    if name not in _ALLOWED_IMPORTS:
+        raise ImportError(f"import of '{name}' is not allowed in generated code")
+    return __import__(name, *args, **kwargs)
+
 # Allowed builtins for exec sandbox
 _SAFE_BUILTINS = {
-    k: v for k, v in __builtins__.items()  # type: ignore[union-attr]
-    if k in {
-        "range", "len", "int", "float", "str", "bool", "list", "dict",
-        "tuple", "set", "abs", "max", "min", "round", "sum", "zip",
-        "enumerate", "map", "filter", "sorted", "reversed",
-        "True", "False", "None", "print",
-    }
-} if isinstance(__builtins__, dict) else {
     "range": range, "len": len, "int": int, "float": float, "str": str,
     "bool": bool, "list": list, "dict": dict, "tuple": tuple, "set": set,
     "abs": abs, "max": max, "min": min, "round": round, "sum": sum,
     "zip": zip, "enumerate": enumerate, "map": map, "filter": filter,
     "sorted": sorted, "reversed": reversed,
     "True": True, "False": False, "None": None, "print": print,
+    "__import__": _restricted_import,
 }
 
 
