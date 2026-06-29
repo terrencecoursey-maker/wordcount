@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.git/
+.github/
+models/
+*.stl
+*.3mf
+*.step
+*.dxf
+README.md
+test_wordcount.py
+wordcount.py
