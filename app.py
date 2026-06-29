@@ -1,6 +1,7 @@
 import os
 import uuid
 import datetime
+import threading
 import cadquery as cq
 from cadquery import exporters
 from flask import Flask, request, jsonify, render_template, send_file
@@ -187,6 +188,11 @@ def chat():
         has_step = _try_export(result, model_id, "step")
         has_glb  = _try_glb(model_id)
 
+        # Pre-build mold in background so it's ready when the user clicks
+        threading.Thread(
+            target=_make_mold_stl, args=(code, model_id), daemon=True
+        ).start()
+
         entry = {
             "model_id": model_id,
             "prompt":   message[:90] + ("…" if len(message) > 90 else ""),
@@ -259,6 +265,12 @@ def _make_mold_stl(code: str, model_id: str) -> str:
     mold_path = os.path.join(MODELS_DIR, f"{model_id}_mold.stl")
     exporters.export(compound, mold_path)
     return mold_path
+
+
+@app.route("/mold-ready/<model_id>")
+def mold_ready(model_id: str):
+    path = os.path.join(MODELS_DIR, f"{model_id}_mold.stl")
+    return jsonify({"ready": os.path.exists(path) and os.path.getsize(path) > 0})
 
 
 @app.route("/mold/<model_id>")

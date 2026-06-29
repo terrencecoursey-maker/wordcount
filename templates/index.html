@@ -237,6 +237,13 @@
     .dl-btn:not(:disabled):hover  { background: var(--accent); border-color: var(--accent); color: #fff; }
     .dl-btn:not(:disabled):active { background: var(--accent); border-color: var(--accent); color: #fff; opacity: .8; }
     .dl-btn:disabled { opacity: .28; cursor: not-allowed; }
+    .dl-group-all { margin-left: auto; }
+    .dl-btn-all {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+      font-weight: 600; padding: 5px 16px;
+    }
+    .dl-btn-all:not(:disabled):hover { background: #3a58e0; border-color: #3a58e0; }
+    .dl-btn-all:disabled { background: transparent; color: var(--muted); border-color: var(--border); font-weight: 400; }
 
     .spinner {
       width: 13px; height: 13px;
@@ -405,7 +412,10 @@
           </div>
           <div class="dl-group">
             <span class="dl-group-label">Mold</span>
-            <button class="dl-btn" id="btn-mold" disabled onclick="makeMold()">⬡ Mold STL</button>
+            <button class="dl-btn" id="btn-mold" disabled onclick="makeMold()">⬡ Mold…</button>
+          </div>
+          <div class="dl-group dl-group-all">
+            <button class="dl-btn dl-btn-all" id="btn-all" disabled onclick="downloadAll()">⬇ Download All</button>
           </div>
         </div>
       </div>
@@ -627,6 +637,29 @@
       document.getElementById('btn-step').disabled = !d.has_step;
       document.getElementById('btn-glb').disabled  = !d.has_glb;
       document.getElementById('btn-mold').disabled = false;
+      document.getElementById('btn-all').disabled  = false;
+    }
+
+    let _moldPollTimer = null;
+    function pollMoldReady(modelId) {
+      clearInterval(_moldPollTimer);
+      const btn = document.getElementById('btn-mold');
+      btn.textContent = '⬡ Mold…';
+      _moldPollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/mold-ready/${modelId}`);
+          const j = await r.json();
+          if (j.ready) {
+            clearInterval(_moldPollTimer);
+            btn.textContent = '⬡ Mold STL';
+          }
+        } catch { clearInterval(_moldPollTimer); }
+      }, 2000);
+      // Stop polling after 3 minutes regardless
+      setTimeout(() => {
+        clearInterval(_moldPollTimer);
+        btn.textContent = '⬡ Mold STL';
+      }, 180000);
     }
 
     // ── History ────────────────────────────────────────────────────────
@@ -686,7 +719,7 @@
       setStatus('Generating…');
       spinner(true);
       document.getElementById('send-btn').disabled  = true;
-      ['btn-stl','btn-3mf','btn-step','btn-glb','btn-mold'].forEach(id =>
+      ['btn-stl','btn-3mf','btn-step','btn-glb','btn-mold','btn-all'].forEach(id =>
         document.getElementById(id).disabled = true);
 
       try {
@@ -705,6 +738,7 @@
           addMsg('Model generated — loading preview…' + codeBlock(d.code), 'ai');
           setDlButtons(d);
           loadSTL(`/model/${d.model_id}.stl`);
+          pollMoldReady(d.model_id);
         } else {
           if (d.history) { modelHistory = d.history; renderHistory(); }
           addMsg(
@@ -755,6 +789,51 @@
 
     function dl(fmt) {
       if (currentModel) window.location.href = `/download/${currentModel}/${fmt}`;
+    }
+
+    async function downloadAll() {
+      if (!currentModel) return;
+      const btn = document.getElementById('btn-all');
+      btn.disabled = true;
+      btn.textContent = '⏳ Preparing…';
+      setStatus('Downloading all files…');
+
+      // Download available model formats immediately via hidden links
+      const fmts = [];
+      if (!document.getElementById('btn-stl').disabled)  fmts.push('stl');
+      if (!document.getElementById('btn-3mf').disabled)  fmts.push('3mf');
+      if (!document.getElementById('btn-step').disabled) fmts.push('step');
+      if (!document.getElementById('btn-glb').disabled)  fmts.push('glb');
+
+      for (const fmt of fmts) {
+        await new Promise(res => {
+          const a = document.createElement('a');
+          a.href = `/download/${currentModel}/${fmt}`;
+          a.download = `model.${fmt}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(res, 400);   // stagger so browser doesn't block
+        });
+      }
+
+      // Then fetch the mold (may still be building)
+      try {
+        btn.textContent = '⏳ Mold…';
+        const resp = await fetch(`/mold/${currentModel}`);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url; a.download = 'mold.stl';
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        }
+      } catch { /* non-fatal */ }
+
+      btn.textContent = '⬇ Download All';
+      btn.disabled = false;
+      setStatus('All files downloaded');
     }
 
     async function makeMold() {
