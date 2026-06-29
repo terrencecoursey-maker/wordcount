@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AI 3D Model Builder</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="theme-color" content="#1a1a3e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="3D Builder" />
+  <link rel="apple-touch-icon" href="/static/icon-180.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0d0d1a;
+      --panel:   #13132a;
+      --border:  #1e1e4a;
+      --accent:  #4f6ef7;
+      --red:     #e94560;
+      --text:    #dde1ff;
+      --muted:   #6670aa;
+      --code-bg: #070710;
+      --dim-x:   #ff5555;
+      --dim-y:   #55cc55;
+      --dim-z:   #5599ff;
+      --tab-h:   54px;
+    }
+
+    html, body {
+      height: 100%; width: 100%;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      display: flex; flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 10px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+      padding-top: max(10px, env(safe-area-inset-top));
+    }
+    header h1 { font-size: 1rem; font-weight: 600; }
+    .badge {
+      font-size: .7rem; background: var(--accent); color: #fff;
+      padding: 2px 8px; border-radius: 999px;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: flex; flex: 1; overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Left / Chat panel ── */
+    .left {
+      width: 360px; min-width: 260px;
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+      flex-shrink: 0;
+    }
+
+    .messages {
+      flex: 1; overflow-y: auto;
+      padding: 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg {
+      padding: 10px 13px; border-radius: 10px;
+      font-size: .875rem; line-height: 1.55;
+      max-width: 95%; word-break: break-word;
+    }
+    .msg.user  { background: var(--accent); align-self: flex-end; color: #fff; }
+    .msg.ai    { background: var(--bg); border: 1px solid var(--border); align-self: flex-start; }
+    .msg.error { border-color: var(--red); }
+
+    .code-wrap {
+      margin-top: 8px; background: var(--code-bg);
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 10px; background: var(--border);
+      font-size: .7rem; color: var(--muted);
+    }
+    .code-header button {
+      background: none; border: none; color: var(--accent);
+      cursor: pointer; font-size: .7rem; padding: 0;
+    }
+    .code-header button:hover { text-decoration: underline; }
+    pre {
+      padding: 10px; overflow-x: auto; font-size: .72rem;
+      font-family: "SF Mono","Fira Code",monospace;
+      color: #a5b4fc; max-height: 200px; overflow-y: auto; white-space: pre;
+    }
+
+    /* ── History panel ── */
+    .history-panel {
+      border-top: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0;
+    }
+    .history-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 7px 12px;
+      font-size: .72rem; color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .history-header:hover { color: var(--text); }
+    .hist-clear {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: .68rem; padding: 0; min-height: 32px; min-width: 44px;
+      text-align: right;
+    }
+    .hist-clear:hover { color: var(--red); }
+    .history-list { max-height: 140px; overflow-y: auto; }
+    .history-list::-webkit-scrollbar { width: 3px; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--border); }
+    .history-item {
+      display: flex; align-items: baseline; gap: 7px;
+      padding: 8px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: .78rem; min-height: 40px;
+      transition: background .1s;
+    }
+    .history-item:hover  { background: var(--panel); }
+    .history-item.active { color: var(--accent); }
+    .hist-idx  { font-size: .65rem; color: var(--muted); flex-shrink: 0; width: 16px; }
+    .hist-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hist-time { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
+
+    /* ── Input row ── */
+    .input-row {
+      padding: 10px 12px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px; flex-shrink: 0;
+    }
+    textarea {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 9px 12px;
+      font-size: .9rem; resize: none; height: 58px; font-family: inherit;
+      transition: border-color .15s;
+    }
+    textarea:focus { outline: none; border-color: var(--accent); }
+    #send-btn {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; padding: 0 18px; cursor: pointer;
+      font-size: .9rem; transition: opacity .15s;
+      min-width: 64px; min-height: 44px;
+    }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+    #send-btn:not(:disabled):active { opacity: .75; }
+
+    /* ── Viewer ── */
+    .viewer { flex: 1; display: flex; flex-direction: column; }
+
+    #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
+    canvas { display: block; touch-action: none; }
+
+    #empty {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px;
+      pointer-events: none;
+    }
+    #empty svg { opacity: .13; }
+    #empty p   { color: var(--muted); font-size: .85rem; }
+    #empty small { color: #333; font-size: .75rem; }
+
+    /* Floating dimension labels */
+    .ann-label {
+      position: absolute; top: 0; left: 0;
+      background: rgba(13,13,26,.88); border: 1px solid;
+      border-radius: 3px; padding: 2px 7px;
+      font-size: .68rem; font-family: "SF Mono","Fira Code",monospace;
+      color: var(--text); pointer-events: none; white-space: nowrap; display: none;
+    }
+
+    /* Dimension corner overlay */
+    #dims-overlay {
+      position: absolute; top: 10px; right: 10px;
+      background: rgba(13,13,26,.82);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 11px; pointer-events: none;
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: .75rem; display: none; line-height: 1.7;
+    }
+    .dim-row { display: flex; gap: 7px; align-items: baseline; }
+    .dim-lbl { font-size: .63rem; font-weight: 700; width: 12px; }
+    .dim-lbl.x { color: var(--dim-x); }
+    .dim-lbl.y { color: var(--dim-y); }
+    .dim-lbl.z { color: var(--dim-z); }
+    .dim-val  { color: var(--text); }
+    .dim-unit { color: var(--muted); font-size: .63rem; }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      padding: 8px 14px; background: var(--panel);
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+    }
+    .toolbar-top {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .toolbar-hint { font-size: .72rem; color: var(--muted); flex: 1; }
+    #status-text  { font-size: .72rem; color: var(--muted); }
+
+    .dl-groups {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    }
+    .dl-group { display: flex; align-items: center; gap: 5px; }
+    .dl-group-label { font-size: .67rem; color: var(--muted); white-space: nowrap; }
+    .dl-btn {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); padding: 5px 12px;
+      border-radius: 5px; font-size: .78rem; cursor: pointer;
+      white-space: nowrap;
+      transition: background .12s, border-color .12s, color .12s;
+      min-height: 34px;
+    }
+    .dl-btn:not(:disabled):hover  { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .dl-btn:not(:disabled):active { background: var(--accent); border-color: var(--accent); color: #fff; opacity: .8; }
+    .dl-btn:disabled { opacity: .28; cursor: not-allowed; }
+    .dl-group-all { margin-left: auto; }
+    .dl-btn-all {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+      font-weight: 600; padding: 5px 16px;
+    }
+    .dl-btn-all:not(:disabled):hover { background: #3a58e0; border-color: #3a58e0; }
+    .dl-btn-all:disabled { background: transparent; color: var(--muted); border-color: var(--border); font-weight: 400; }
+
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .7s linear infinite; display: none;
+      flex-shrink: 0;
+    }
+    .spinner.active { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Tab bar (mobile only) ── */
+    .tab-bar {
+      display: none;
+      background: var(--panel);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 3px;
+      padding: 8px 6px; border: none; background: transparent;
+      color: var(--muted); cursor: pointer; font-size: .72rem;
+      position: relative; min-height: var(--tab-h);
+      transition: color .15s;
+    }
+    .tab-btn svg { width: 22px; height: 22px; }
+    .tab-btn.active { color: var(--accent); }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute; top: 0; left: 25%; right: 25%; height: 2px;
+      background: var(--accent); border-radius: 0 0 2px 2px;
+    }
+    /* Notification dot on View tab */
+    .tab-dot {
+      position: absolute; top: 8px; right: calc(50% - 18px);
+      width: 7px; height: 7px;
+      background: var(--accent); border-radius: 50%;
+      border: 1px solid var(--panel);
+      display: none;
+    }
+    .tab-dot.visible { display: block; }
+
+    /* ── Mobile responsive ── */
+    @media (max-width: 767px) {
+      .tab-bar { display: flex; }
+
+      .layout { flex-direction: column; }
+
+      .left {
+        width: 100%; min-width: unset;
+        border-right: none; border-bottom: 1px solid var(--border);
+        flex: 1; display: none;
+      }
+      .left.mob-show { display: flex; }
+
+      .viewer { display: none; flex: 1; }
+      .viewer.mob-show { display: flex; }
+
+      /* Compact toolbar on mobile */
+      .toolbar { padding: 6px 10px; gap: 4px; }
+      .toolbar-top { gap: 8px; }
+      .toolbar-hint { display: none; }
+
+      .dl-groups {
+        flex-wrap: nowrap; overflow-x: auto; gap: 8px;
+        padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+      }
+      .dl-groups::-webkit-scrollbar { height: 2px; }
+      .dl-group-label { display: none; }
+      .dl-btn { padding: 6px 13px; font-size: .8rem; min-height: 38px; }
+
+      /* Smaller dims overlay */
+      #dims-overlay { font-size: .68rem; padding: 5px 8px; top: 8px; right: 8px; }
+
+      /* Hide floating annotation labels — too crowded on small screens */
+      .ann-label { display: none !important; }
+
+      /* Taller textarea */
+      textarea { height: 50px; font-size: .875rem; }
+
+      .msg { font-size: .85rem; }
+      pre  { font-size: .7rem; }
+    }
+
+    /* Make sure desktop always shows both panels */
+    @media (min-width: 768px) {
+      .left   { display: flex !important; }
+      .viewer { display: flex !important; }
+      .tab-bar { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI 3D Model Builder</h1>
+    <span class="badge">CadQuery + Claude</span>
+  </header>
+
+  <div class="layout">
+    <!-- ── Chat panel ── -->
+    <div class="left mob-show" id="left-panel">
+      <div class="messages" id="messages">
+        <div class="msg ai">
+          Describe a 3D model in plain English and I'll generate it.<br><br>
+          Try: <em>"A 50×30×20 mm box with a 10 mm hole and 2 mm fillets"</em><br>
+          Or: <em>"A flanged cylinder, 60 mm tall, 25 mm OD, 5 mm wall"</em>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="history-panel" id="history-panel" style="display:none">
+        <div class="history-header" onclick="toggleHistory()">
+          <span>Model History <span id="hist-arrow">▾</span></span>
+          <button class="hist-clear" onclick="event.stopPropagation();clearHistory()">Clear</button>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+
+      <div class="input-row">
+        <textarea id="prompt"
+          placeholder="Describe your model… (Enter to send)"
+          onkeydown="onKey(event)"></textarea>
+        <button id="send-btn" onclick="sendMsg()">Send</button>
+      </div>
+    </div>
+
+    <!-- ── 3D Viewer ── -->
+    <div class="viewer" id="viewer-panel">
+      <div id="canvas-wrap">
+        <div id="empty">
+          <svg width="72" height="72" viewBox="0 0 80 80" fill="none">
+            <path d="M40 8L72 24V56L40 72L8 56V24L40 8Z" stroke="#4f6ef7" stroke-width="2" fill="none"/>
+            <path d="M40 8V72M8 24L72 56M72 24L8 56" stroke="#4f6ef7" stroke-width="1" opacity=".4"/>
+          </svg>
+          <p>3D preview appears here</p>
+          <small>Describe a model in the chat to get started</small>
+        </div>
+
+        <div id="dims-overlay">
+          <div class="dim-row"><span class="dim-lbl x">W</span><span class="dim-val" id="dim-x">—</span><span class="dim-unit">mm</span></div>
+          <div class="dim-row"><span class="dim-lbl y">D</span><span class="dim-val" id="dim-y">—</span><span class="dim-unit">mm</span></div>
+          <div class="dim-row"><span class="dim-lbl z">H</span><span class="dim-val" id="dim-z">—</span><span class="dim-unit">mm</span></div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-top">
+          <span class="toolbar-hint">Drag: rotate &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right-drag: pan</span>
+          <div class="spinner" id="spinner"></div>
+          <span id="status-text"></span>
+        </div>
+        <div class="dl-groups">
+          <div class="dl-group">
+            <span class="dl-group-label">Slicer</span>
+            <button class="dl-btn" id="btn-3mf"  disabled onclick="dl('3mf')">Bambu · Orca&nbsp;3MF</button>
+          </div>
+          <div class="dl-group">
+            <span class="dl-group-label">Blender</span>
+            <button class="dl-btn" id="btn-glb"  disabled onclick="dl('glb')">Blender GLB</button>
+          </div>
+          <div class="dl-group">
+            <span class="dl-group-label">CAD</span>
+            <button class="dl-btn" id="btn-step" disabled onclick="dl('step')">STEP</button>
+            <button class="dl-btn" id="btn-stl"  disabled onclick="dl('stl')">STL</button>
+          </div>
+          <div class="dl-group">
+            <span class="dl-group-label">Mold</span>
+            <button class="dl-btn" id="btn-mold" disabled onclick="makeMold()">⬡ Mold…</button>
+          </div>
+          <div class="dl-group dl-group-all">
+            <button class="dl-btn dl-btn-all" id="btn-all" disabled onclick="downloadAll()">⬇ Download All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab bar (mobile only) ── -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="chat" onclick="switchTab('chat')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      Chat
+    </button>
+    <button class="tab-btn" data-tab="view" onclick="switchTab('view')">
+      <span class="tab-dot" id="view-dot"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      </svg>
+      3D View
+    </button>
+  </div>
+
+  <script src="/static/three.min.js"></script>
+  <script src="/static/STLLoader.js"></script>
+  <script src="/static/OrbitControls.js"></script>
+
+  <script>
+    // ── Mobile helpers ────────────────────────────────────────────────
+    const isMobile = () => window.innerWidth < 768;
+
+    function switchTab(tab) {
+      const left   = document.getElementById('left-panel');
+      const viewer = document.getElementById('viewer-panel');
+      left.classList.toggle('mob-show',   tab === 'chat');
+      viewer.classList.toggle('mob-show', tab === 'view');
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      if (tab === 'view') {
+        document.getElementById('view-dot').classList.remove('visible');
+        setTimeout(fitView, 30);   // canvas was hidden, needs resize
+      }
+    }
+
+    // ── Three.js setup ────────────────────────────────────────────────
+    const wrap = document.getElementById('canvas-wrap');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0d0d1a);
+    wrap.appendChild(renderer.domElement);
+
+    const scene  = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 50000);
+    camera.position.set(120, 120, 120);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = true;
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN,
+    };
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
+    sun.position.set(200, 400, 200);
+    scene.add(sun);
+    const fillLight = new THREE.DirectionalLight(0x8899ff, 0.4);
+    fillLight.position.set(-150, -100, -100);
+    scene.add(fillLight);
+
+    scene.add(new THREE.GridHelper(500, 40, 0x1e1e4a, 0x151528));
+
+    function fitView() {
+      const W = wrap.clientWidth, H = wrap.clientHeight;
+      if (!W || !H) return;
+      renderer.setSize(W, H);
+      camera.aspect = W / H;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(fitView).observe(wrap);
+    fitView();
+
+    // ── Dimension rulers ──────────────────────────────────────────────
+    let mesh = null, bboxHelper = null, rulerGroup = null;
+    let annotLabels = [];
+    let histOpen = true;
+
+    function clearRulers() {
+      if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+      if (rulerGroup) { scene.remove(rulerGroup); rulerGroup = null; }
+      annotLabels.forEach(({el}) => el.remove());
+      annotLabels = [];
+    }
+
+    function addRulerLine(from, to, color, tickSz, labelText) {
+      const dir  = to.clone().sub(from).normalize();
+      const up   = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+      const perp = dir.clone().cross(up).normalize().multiplyScalar(tickSz);
+      const pts  = [
+        from, to,
+        from.clone().add(perp), from.clone().sub(perp),
+        to.clone().add(perp),   to.clone().sub(perp),
+      ];
+      rulerGroup.add(new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color, opacity: 0.75, transparent: true })
+      ));
+      const mid = from.clone().lerp(to, 0.5);
+      const el  = document.createElement('div');
+      el.className = 'ann-label';
+      el.style.borderColor = '#' + color.toString(16).padStart(6, '0');
+      el.textContent = labelText;
+      wrap.appendChild(el);
+      annotLabels.push({ el, pos: mid });
+    }
+
+    function buildRulers(box) {
+      clearRulers();
+      const size   = box.getSize(new THREE.Vector3());
+      const offset = Math.max(size.x, size.y, size.z) * 0.28 + 8;
+      const tick   = offset * 0.18;
+
+      bboxHelper = new THREE.Box3Helper(box, 0x334477);
+      bboxHelper.material.opacity = 0.25;
+      bboxHelper.material.transparent = true;
+      scene.add(bboxHelper);
+
+      rulerGroup = new THREE.Group();
+      addRulerLine(
+        new THREE.Vector3(box.min.x, box.min.y - offset, box.min.z - offset),
+        new THREE.Vector3(box.max.x, box.min.y - offset, box.min.z - offset),
+        0xff5555, tick, size.x.toFixed(1) + ' mm'
+      );
+      addRulerLine(
+        new THREE.Vector3(box.max.x + offset, box.min.y, box.min.z - offset),
+        new THREE.Vector3(box.max.x + offset, box.max.y, box.min.z - offset),
+        0x55cc55, tick, size.y.toFixed(1) + ' mm'
+      );
+      addRulerLine(
+        new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.min.z),
+        new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.max.z),
+        0x5599ff, tick, size.z.toFixed(1) + ' mm'
+      );
+      scene.add(rulerGroup);
+
+      document.getElementById('dim-x').textContent = size.x.toFixed(1);
+      document.getElementById('dim-y').textContent = size.y.toFixed(1);
+      document.getElementById('dim-z').textContent = size.z.toFixed(1);
+      document.getElementById('dims-overlay').style.display = 'block';
+    }
+
+    function updateAnnotations() {
+      if (!annotLabels.length) return;
+      const W = renderer.domElement.clientWidth;
+      const H = renderer.domElement.clientHeight;
+      for (const {el, pos} of annotLabels) {
+        const v = pos.clone().project(camera);
+        if (v.z > 1) { el.style.display = 'none'; continue; }
+        const x = ( v.x * 0.5 + 0.5) * W;
+        const y = (-v.y * 0.5 + 0.5) * H;
+        el.style.display = 'block';
+        el.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
+      }
+    }
+
+    // ── Render loop ────────────────────────────────────────────────────
+    (function loop() {
+      requestAnimationFrame(loop);
+      controls.update();
+      updateAnnotations();
+      renderer.render(scene, camera);
+    })();
+
+    // ── STL loader ─────────────────────────────────────────────────────
+    function loadSTL(url) {
+      new THREE.STLLoader().load(url, geo => {
+        if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
+        geo.computeVertexNormals();
+        mesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+          color: 0x5577ff, specular: 0x223355, shininess: 80,
+          side: THREE.DoubleSide,
+        }));
+        scene.add(mesh);
+
+        const box    = new THREE.Box3().setFromObject(mesh);
+        const center = box.getCenter(new THREE.Vector3());
+        const size   = box.getSize(new THREE.Vector3());
+        const maxD   = Math.max(size.x, size.y, size.z);
+        camera.position.set(center.x + maxD*1.6, center.y + maxD*1.6, center.z + maxD*1.6);
+        controls.target.copy(center);
+        controls.update();
+
+        buildRulers(box);
+        document.getElementById('empty').style.display = 'none';
+        setStatus('Model loaded');
+        spinner(false);
+
+        // On mobile: notify View tab and auto-switch
+        if (isMobile()) {
+          document.getElementById('view-dot').classList.add('visible');
+          switchTab('view');
+        }
+      }, undefined, () => { setStatus('Preview error'); spinner(false); });
+    }
+
+    // ── App state ──────────────────────────────────────────────────────
+    let sessionId    = null;
+    let currentModel = null;
+
+    function spinner(on)  { document.getElementById('spinner').classList.toggle('active', on); }
+    function setStatus(t) { document.getElementById('status-text').textContent = t; }
+
+    function setDlButtons(d) {
+      document.getElementById('btn-stl').disabled  = false;
+      document.getElementById('btn-3mf').disabled  = !d.has_3mf;
+      document.getElementById('btn-step').disabled = !d.has_step;
+      document.getElementById('btn-glb').disabled  = !d.has_glb;
+      document.getElementById('btn-mold').disabled = false;
+      document.getElementById('btn-all').disabled  = false;
+    }
+
+    let _moldPollTimer = null;
+    function pollMoldReady(modelId) {
+      clearInterval(_moldPollTimer);
+      const btn = document.getElementById('btn-mold');
+      btn.textContent = '⬡ Mold…';
+      _moldPollTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`/mold-ready/${modelId}`);
+          const j = await r.json();
+          if (j.ready) {
+            clearInterval(_moldPollTimer);
+            btn.textContent = '⬡ Mold STL';
+          }
+        } catch { clearInterval(_moldPollTimer); }
+      }, 2000);
+      // Stop polling after 3 minutes regardless
+      setTimeout(() => {
+        clearInterval(_moldPollTimer);
+        btn.textContent = '⬡ Mold STL';
+      }, 180000);
+    }
+
+    // ── History ────────────────────────────────────────────────────────
+    let modelHistory = [];
+
+    function toggleHistory() {
+      histOpen = !histOpen;
+      document.getElementById('history-list').style.display = histOpen ? 'block' : 'none';
+      document.getElementById('hist-arrow').textContent = histOpen ? '▾' : '▸';
+    }
+
+    function clearHistory() {
+      modelHistory = [];
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const panel = document.getElementById('history-panel');
+      const list  = document.getElementById('history-list');
+      if (!modelHistory.length) { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      list.innerHTML = '';
+      modelHistory.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'history-item' + (item.model_id === currentModel ? ' active' : '');
+        div.innerHTML =
+          `<span class="hist-idx">${i+1}</span>` +
+          `<span class="hist-text">${esc(item.prompt)}</span>` +
+          `<span class="hist-time">${esc(item.ts)}</span>`;
+        div.addEventListener('click', () => restoreModel(item, div));
+        list.appendChild(div);
+      });
+      list.lastElementChild.scrollIntoView({ block: 'nearest' });
+    }
+
+    function restoreModel(item, el) {
+      currentModel = item.model_id;
+      document.querySelectorAll('.history-item').forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      setDlButtons(item);
+      spinner(true); setStatus('Loading…');
+      loadSTL(`/model/${item.model_id}.stl`);
+    }
+
+    // ── Chat ───────────────────────────────────────────────────────────
+    function onKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+    }
+
+    async function sendMsg() {
+      const ta  = document.getElementById('prompt');
+      const txt = ta.value.trim();
+      if (!txt) return;
+      ta.value = '';
+
+      addMsg(txt, 'user');
+      setStatus('Generating…');
+      spinner(true);
+      document.getElementById('send-btn').disabled  = true;
+      ['btn-stl','btn-3mf','btn-step','btn-glb','btn-mold','btn-all'].forEach(id =>
+        document.getElementById(id).disabled = true);
+
+      try {
+        const r = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: txt, session_id: sessionId }),
+        });
+        const d = await r.json();
+        sessionId = d.session_id;
+
+        if (d.success) {
+          currentModel  = d.model_id;
+          modelHistory  = d.history || [];
+          renderHistory();
+          addMsg('Model generated — loading preview…' + codeBlock(d.code), 'ai');
+          setDlButtons(d);
+          loadSTL(`/model/${d.model_id}.stl`);
+          pollMoldReady(d.model_id);
+        } else {
+          if (d.history) { modelHistory = d.history; renderHistory(); }
+          addMsg(
+            `<strong style="color:var(--red)">Error:</strong> ${esc(d.error)}` +
+            (d.code ? codeBlock(d.code) : ''),
+            'ai', true
+          );
+          setStatus('Error'); spinner(false);
+        }
+      } catch (e) {
+        addMsg(`Network error: ${esc(e.message)}`, 'ai', true);
+        setStatus('Network error'); spinner(false);
+      } finally {
+        document.getElementById('send-btn').disabled = false;
+      }
+    }
+
+    function addMsg(html, role, error = false) {
+      const div = document.createElement('div');
+      div.className = 'msg ' + role + (error ? ' error' : '');
+      div.innerHTML = html;
+      const msgs = document.getElementById('messages');
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function codeBlock(code) {
+      const id = 'cb' + Math.random().toString(36).slice(2);
+      return `<div class="code-wrap">
+        <div class="code-header">
+          <span>cadquery</span>
+          <button onclick="copyCode('${id}')">Copy</button>
+        </div>
+        <pre id="${id}">${esc(code)}</pre>
+      </div>`;
+    }
+
+    function copyCode(id) {
+      const pre = document.getElementById(id);
+      if (pre) navigator.clipboard.writeText(pre.textContent);
+    }
+
+    function esc(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function dl(fmt) {
+      if (currentModel) window.location.href = `/download/${currentModel}/${fmt}`;
+    }
+
+    async function downloadAll() {
+      if (!currentModel) return;
+      const btn = document.getElementById('btn-all');
+      btn.disabled = true;
+      btn.textContent = '⏳ Preparing…';
+      setStatus('Downloading all files…');
+
+      // Download available model formats immediately via hidden links
+      const fmts = [];
+      if (!document.getElementById('btn-stl').disabled)  fmts.push('stl');
+      if (!document.getElementById('btn-3mf').disabled)  fmts.push('3mf');
+      if (!document.getElementById('btn-step').disabled) fmts.push('step');
+      if (!document.getElementById('btn-glb').disabled)  fmts.push('glb');
+
+      for (const fmt of fmts) {
+        await new Promise(res => {
+          const a = document.createElement('a');
+          a.href = `/download/${currentModel}/${fmt}`;
+          a.download = `model.${fmt}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(res, 400);   // stagger so browser doesn't block
+        });
+      }
+
+      // Then fetch the mold (may still be building)
+      try {
+        btn.textContent = '⏳ Mold…';
+        const resp = await fetch(`/mold/${currentModel}`);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const url  = URL.createObjectURL(blob);
+          const a    = document.createElement('a');
+          a.href = url; a.download = 'mold.stl';
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        }
+      } catch { /* non-fatal */ }
+
+      btn.textContent = '⬇ Download All';
+      btn.disabled = false;
+      setStatus('All files downloaded');
+    }
+
+    async function makeMold() {
+      if (!currentModel) return;
+      const btn = document.getElementById('btn-mold');
+      const orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⏳ Building…';
+      setStatus('Generating mold (may take ~10 s)…');
+      try {
+        const resp = await fetch(`/mold/${currentModel}`);
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({ error: resp.statusText }));
+          setStatus('Mold error: ' + body.error);
+          return;
+        }
+        const blob = await resp.blob();
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'mold.stl';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setStatus('Mold downloaded — print both halves, assemble for casting');
+      } catch (e) {
+        setStatus('Mold failed: ' + e.message);
+      } finally {
+        btn.textContent = orig;
+        btn.disabled    = false;
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>
