@@ -28,6 +28,19 @@ ANTHROPIC_API_KEY=sk-ant-... python app.py
 
 Then open http://localhost:5000 in your browser.
 
+## Deploy with Docker
+
+```bash
+docker build -t ai3d-builder .
+docker run -p 5000:5000 -e ANTHROPIC_API_KEY=sk-ant-... ai3d-builder
+```
+
+This runs the app behind gunicorn. Deploy the image to any Docker-capable
+host (Railway, Render, Fly.io, a VPS, etc.) and set `ANTHROPIC_API_KEY` as a
+runtime environment variable/secret on that platform — installing the app as
+a PWA on your phone requires the deployed URL to be served over HTTPS, which
+these platforms provide by default.
+
 ## Example prompts
 
 - `A 50×30×20 mm rectangular box with a 10 mm through-hole and 2 mm edge fillets`
