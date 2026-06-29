@@ -8,14 +8,17 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0d0d1a;
-      --panel:   #13132a;
-      --border:  #1e1e4a;
-      --accent:  #4f6ef7;
-      --red:     #e94560;
-      --text:    #dde1ff;
-      --muted:   #6670aa;
-      --code-bg: #070710;
+      --bg:       #0d0d1a;
+      --panel:    #13132a;
+      --border:   #1e1e4a;
+      --accent:   #4f6ef7;
+      --red:      #e94560;
+      --text:     #dde1ff;
+      --muted:    #6670aa;
+      --code-bg:  #070710;
+      --dim-x:    #ff5555;
+      --dim-y:    #55cc55;
+      --dim-z:    #5599ff;
     }
 
     body {
@@ -34,186 +37,204 @@
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      flex-shrink: 0;
     }
-    header h1 { font-size: 1rem; font-weight: 600; letter-spacing: .02em; }
-    header .badge {
-      font-size: .7rem;
-      background: var(--accent);
-      color: #fff;
-      padding: 2px 8px;
-      border-radius: 999px;
+    header h1 { font-size: 1rem; font-weight: 600; }
+    .badge {
+      font-size: .7rem; background: var(--accent); color: #fff;
+      padding: 2px 8px; border-radius: 999px;
     }
 
-    .layout {
-      display: flex;
-      flex: 1;
+    .layout { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Left panel ── */
+    .left {
+      width: 360px; min-width: 260px;
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--panel);
       overflow: hidden;
     }
 
-    /* ── Chat panel ── */
-    .chat {
-      width: 360px;
-      min-width: 260px;
-      display: flex;
-      flex-direction: column;
-      border-right: 1px solid var(--border);
-      background: var(--panel);
-    }
-
     .messages {
-      flex: 1;
-      overflow-y: auto;
+      flex: 1; overflow-y: auto;
       padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      scroll-behavior: smooth;
+      display: flex; flex-direction: column; gap: 10px;
     }
-    .messages::-webkit-scrollbar { width: 5px; }
-    .messages::-webkit-scrollbar-track { background: transparent; }
-    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .messages::-webkit-scrollbar { width: 4px; }
+    .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
     .msg {
-      padding: 10px 13px;
-      border-radius: 10px;
-      font-size: .875rem;
-      line-height: 1.55;
-      max-width: 95%;
-      word-break: break-word;
+      padding: 10px 13px; border-radius: 10px;
+      font-size: .875rem; line-height: 1.55;
+      max-width: 95%; word-break: break-word;
     }
     .msg.user  { background: var(--accent); align-self: flex-end; color: #fff; }
     .msg.ai    { background: var(--bg); border: 1px solid var(--border); align-self: flex-start; }
     .msg.error { border-color: var(--red); }
 
     .code-wrap {
-      margin-top: 8px;
-      background: var(--code-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      overflow: hidden;
+      margin-top: 8px; background: var(--code-bg);
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
     }
     .code-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 10px;
-      background: var(--border);
-      font-size: .7rem;
-      color: var(--muted);
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 4px 10px; background: var(--border);
+      font-size: .7rem; color: var(--muted);
     }
     .code-header button {
-      background: none;
-      border: none;
-      color: var(--accent);
-      cursor: pointer;
-      font-size: .7rem;
-      padding: 0;
+      background: none; border: none; color: var(--accent);
+      cursor: pointer; font-size: .7rem; padding: 0;
     }
     .code-header button:hover { text-decoration: underline; }
     pre {
-      padding: 10px;
-      overflow-x: auto;
-      font-size: .72rem;
+      padding: 10px; overflow-x: auto; font-size: .72rem;
       font-family: "SF Mono", "Fira Code", monospace;
-      color: #a5b4fc;
-      max-height: 220px;
-      overflow-y: auto;
-      white-space: pre;
+      color: #a5b4fc; max-height: 200px; overflow-y: auto; white-space: pre;
     }
 
-    .input-row {
-      padding: 12px;
+    /* ── History panel ── */
+    .history-panel {
       border-top: 1px solid var(--border);
-      display: flex;
-      gap: 8px;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .history-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 12px;
+      font-size: .72rem; color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .history-header:hover { color: var(--text); }
+    .history-header .hist-toggle { font-size: .65rem; }
+    .hist-clear {
+      background: none; border: none; color: var(--muted);
+      cursor: pointer; font-size: .68rem; padding: 0;
+    }
+    .hist-clear:hover { color: var(--red); }
+    .history-list {
+      max-height: 145px; overflow-y: auto;
+    }
+    .history-list::-webkit-scrollbar { width: 3px; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--border); }
+    .history-item {
+      display: flex; align-items: baseline; gap: 7px;
+      padding: 6px 12px; cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: .78rem;
+      transition: background .1s;
+    }
+    .history-item:hover  { background: var(--panel); }
+    .history-item.active { color: var(--accent); }
+    .hist-idx  { font-size: .65rem; color: var(--muted); flex-shrink: 0; width: 16px; }
+    .hist-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hist-time { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
+
+    /* ── Input ── */
+    .input-row {
+      padding: 10px 12px; border-top: 1px solid var(--border);
+      display: flex; gap: 8px; flex-shrink: 0;
     }
     textarea {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: .875rem;
-      resize: none;
-      height: 64px;
-      font-family: inherit;
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px; padding: 8px 12px;
+      font-size: .875rem; resize: none; height: 58px; font-family: inherit;
       transition: border-color .15s;
     }
     textarea:focus { outline: none; border-color: var(--accent); }
     #send-btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 0 16px;
-      cursor: pointer;
-      font-size: .9rem;
-      transition: opacity .15s;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; padding: 0 16px; cursor: pointer;
+      font-size: .9rem; transition: opacity .15s;
     }
     #send-btn:disabled { opacity: .4; cursor: not-allowed; }
     #send-btn:not(:disabled):hover { opacity: .85; }
 
-    /* ── Viewer panel ── */
-    .viewer {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
+    /* ── Viewer ── */
+    .viewer { flex: 1; display: flex; flex-direction: column; position: relative; }
 
-    #canvas-wrap {
-      flex: 1;
-      position: relative;
-    }
+    #canvas-wrap { flex: 1; position: relative; overflow: hidden; }
     canvas { display: block; }
 
     #empty {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px;
       pointer-events: none;
     }
-    #empty svg { opacity: .15; }
-    #empty p { color: var(--muted); font-size: .85rem; }
+    #empty svg { opacity: .13; }
+    #empty p   { color: var(--muted); font-size: .85rem; }
     #empty small { color: #333; font-size: .75rem; }
 
+    /* Floating dimension labels (3D projected) */
+    .ann-label {
+      position: absolute; top: 0; left: 0;
+      background: rgba(13,13,26,.88);
+      border: 1px solid;
+      border-radius: 3px;
+      padding: 2px 7px;
+      font-size: .68rem; font-family: "SF Mono","Fira Code",monospace;
+      color: var(--text); pointer-events: none; white-space: nowrap;
+      display: none;
+    }
+
+    /* Dimension overlay box (top-right corner) */
+    #dims-overlay {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(13,13,26,.82);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 12px; pointer-events: none;
+      font-family: "SF Mono","Fira Code",monospace;
+      font-size: .75rem; display: none;
+      line-height: 1.7;
+    }
+    .dim-row { display: flex; gap: 8px; align-items: baseline; }
+    .dim-lbl { font-size: .65rem; font-weight: 700; width: 12px; }
+    .dim-lbl.x { color: var(--dim-x); }
+    .dim-lbl.y { color: var(--dim-y); }
+    .dim-lbl.z { color: var(--dim-z); }
+    .dim-val   { color: var(--text); }
+    .dim-unit  { color: var(--muted); font-size: .65rem; }
+
+    /* ── Toolbar ── */
     .toolbar {
-      padding: 10px 16px;
-      background: var(--panel);
+      padding: 8px 14px; background: var(--panel);
       border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
     }
-    .toolbar-hint { font-size: .75rem; color: var(--muted); margin-right: auto; }
+    .toolbar-top {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .toolbar-hint { font-size: .72rem; color: var(--muted); flex: 1; }
+    #status-text  { font-size: .72rem; color: var(--muted); }
+
+    .dl-groups {
+      display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+    }
+    .dl-group {
+      display: flex; align-items: center; gap: 5px;
+    }
+    .dl-group-label {
+      font-size: .67rem; color: var(--muted); white-space: nowrap;
+    }
     .dl-btn {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-      padding: 5px 14px;
-      border-radius: 6px;
-      font-size: .8rem;
-      cursor: pointer;
-      transition: background .15s, border-color .15s;
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); padding: 4px 11px;
+      border-radius: 5px; font-size: .75rem; cursor: pointer;
+      transition: background .12s, border-color .12s, color .12s;
+      white-space: nowrap;
     }
-    .dl-btn:not(:disabled):hover { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .dl-btn:disabled { opacity: .3; cursor: not-allowed; }
-    #status-text { font-size: .75rem; color: var(--muted); }
+    .dl-btn:not(:disabled):hover {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .dl-btn:disabled { opacity: .28; cursor: not-allowed; }
 
     .spinner {
-      width: 14px; height: 14px;
-      border: 2px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      display: none;
+      width: 13px; height: 13px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin .7s linear infinite; display: none;
     }
     .spinner.active { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -226,58 +247,88 @@
   </header>
 
   <div class="layout">
-    <!-- Chat -->
-    <div class="chat">
+    <!-- ── Left panel ── -->
+    <div class="left">
       <div class="messages" id="messages">
         <div class="msg ai">
           Describe a 3D model in plain English and I'll generate it.<br><br>
-          Try: <em>"A 50×30×20 mm box with a 10 mm hole through the top and 2 mm fillets on the vertical edges"</em><br><br>
-          Or: <em>"A flanged cylinder, 60 mm tall, 25 mm outer diameter, 5 mm flange"</em>
+          Try: <em>"A 50×30×20 mm box with a 10 mm hole and 2 mm fillets"</em><br>
+          Or: <em>"A flanged cylinder, 60 mm tall, 25 mm OD, 5 mm wall"</em>
         </div>
       </div>
+
+      <!-- History panel -->
+      <div class="history-panel" id="history-panel" style="display:none">
+        <div class="history-header" onclick="toggleHistory()">
+          <span>Model History <span class="hist-toggle" id="hist-arrow">▾</span></span>
+          <button class="hist-clear" onclick="event.stopPropagation(); clearHistory()">Clear</button>
+        </div>
+        <div class="history-list" id="history-list" style="display:block"></div>
+      </div>
+
       <div class="input-row">
-        <textarea id="prompt" placeholder="Describe your model… (Enter to send, Shift+Enter for newline)"
+        <textarea id="prompt"
+          placeholder="Describe your model… (Enter to send)"
           onkeydown="onKey(event)"></textarea>
-        <button id="send-btn" onclick="send()">Send</button>
+        <button id="send-btn" onclick="sendMsg()">Send</button>
       </div>
     </div>
 
-    <!-- 3D viewer -->
+    <!-- ── 3D Viewer ── -->
     <div class="viewer">
       <div id="canvas-wrap">
         <div id="empty">
-          <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-            <path d="M40 8L72 24V56L40 72L8 56V24L40 8Z"
-              stroke="#4f6ef7" stroke-width="2" fill="none"/>
-            <path d="M40 8V72M8 24L72 56M72 24L8 56"
-              stroke="#4f6ef7" stroke-width="1" opacity=".4"/>
+          <svg width="72" height="72" viewBox="0 0 80 80" fill="none">
+            <path d="M40 8L72 24V56L40 72L8 56V24L40 8Z" stroke="#4f6ef7" stroke-width="2" fill="none"/>
+            <path d="M40 8V72M8 24L72 56M72 24L8 56" stroke="#4f6ef7" stroke-width="1" opacity=".4"/>
           </svg>
           <p>3D preview appears here</p>
           <small>Describe a model in the chat to get started</small>
         </div>
+
+        <!-- Dimension annotation overlay -->
+        <div id="dims-overlay">
+          <div class="dim-row"><span class="dim-lbl x">W</span><span class="dim-val" id="dim-x">—</span><span class="dim-unit">mm</span></div>
+          <div class="dim-row"><span class="dim-lbl y">D</span><span class="dim-val" id="dim-y">—</span><span class="dim-unit">mm</span></div>
+          <div class="dim-row"><span class="dim-lbl z">H</span><span class="dim-val" id="dim-z">—</span><span class="dim-unit">mm</span></div>
+        </div>
       </div>
+
       <div class="toolbar">
-        <span class="toolbar-hint">Drag: rotate &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right-drag: pan</span>
-        <div class="spinner" id="spinner"></div>
-        <span id="status-text"></span>
-        <button class="dl-btn" id="btn-stl" disabled onclick="dl('stl')">↓ STL</button>
-        <button class="dl-btn" id="btn-3mf" disabled onclick="dl('3mf')">↓ 3MF</button>
+        <div class="toolbar-top">
+          <span class="toolbar-hint">Drag: rotate &nbsp;·&nbsp; Scroll: zoom &nbsp;·&nbsp; Right-drag: pan</span>
+          <div class="spinner" id="spinner"></div>
+          <span id="status-text"></span>
+        </div>
+        <div class="dl-groups">
+          <div class="dl-group">
+            <span class="dl-group-label">Slicer</span>
+            <button class="dl-btn" id="btn-3mf"  disabled onclick="dl('3mf')">Bambu · Orca  3MF</button>
+          </div>
+          <div class="dl-group">
+            <span class="dl-group-label">Blender</span>
+            <button class="dl-btn" id="btn-glb"  disabled onclick="dl('glb')">GLB</button>
+          </div>
+          <div class="dl-group">
+            <span class="dl-group-label">CAD</span>
+            <button class="dl-btn" id="btn-step" disabled onclick="dl('step')">STEP</button>
+            <button class="dl-btn" id="btn-stl"  disabled onclick="dl('stl')">STL</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Three.js served locally -->
   <script src="/static/three.min.js"></script>
   <script src="/static/STLLoader.js"></script>
   <script src="/static/OrbitControls.js"></script>
 
   <script>
-    // ── Three.js setup ──────────────────────────────────────────────
-    const wrap     = document.getElementById('canvas-wrap');
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    // ── Three.js setup ────────────────────────────────────────────────
+    const wrap = document.getElementById('canvas-wrap');
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x0d0d1a);
-    renderer.shadowMap.enabled = true;
     wrap.appendChild(renderer.domElement);
 
     const scene  = new THREE.Scene();
@@ -285,11 +336,10 @@
     camera.position.set(120, 120, 120);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping  = true;
-    controls.dampingFactor  = 0.08;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
     controls.screenSpacePanning = true;
 
-    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.35));
     const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
     sun.position.set(200, 400, 200);
@@ -298,7 +348,6 @@
     fill.position.set(-150, -100, -100);
     scene.add(fill);
 
-    // Grid
     const grid = new THREE.GridHelper(500, 40, 0x1e1e4a, 0x151528);
     scene.add(grid);
 
@@ -311,7 +360,102 @@
     new ResizeObserver(fitView).observe(wrap);
     fitView();
 
-    let mesh = null;
+    // ── Dimension rulers ──────────────────────────────────────────────
+    let mesh = null, bboxHelper = null, rulerGroup = null;
+    let annotLabels = [];   // [{el, pos}]
+    let histOpen = true;
+
+    function clearRulers() {
+      if (bboxHelper) { scene.remove(bboxHelper); bboxHelper = null; }
+      if (rulerGroup) { scene.remove(rulerGroup); rulerGroup = null; }
+      annotLabels.forEach(({el}) => el.remove());
+      annotLabels = [];
+    }
+
+    function addRulerLine(from, to, color, tickSz) {
+      const dir = to.clone().sub(from).normalize();
+      const up  = Math.abs(dir.y) < 0.9 ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+      const perp = dir.clone().cross(up).normalize().multiplyScalar(tickSz);
+      const pts = [
+        from, to,
+        from.clone().add(perp), from.clone().sub(perp),
+        to.clone().add(perp),   to.clone().sub(perp),
+      ];
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color, opacity: 0.75, transparent: true });
+      rulerGroup.add(new THREE.LineSegments(geo, mat));
+
+      // Floating HTML label
+      const mid = from.clone().lerp(to, 0.5);
+      const el  = document.createElement('div');
+      el.className = 'ann-label';
+      el.style.borderColor = '#' + color.toString(16).padStart(6, '0');
+      wrap.appendChild(el);
+      annotLabels.push({ el, pos: mid });
+      return el;
+    }
+
+    function buildRulers(box) {
+      clearRulers();
+      const size   = box.getSize(new THREE.Vector3());
+      const offset = Math.max(size.x, size.y, size.z) * 0.28 + 8;
+      const tick   = offset * 0.18;
+
+      // Semi-transparent bounding box wireframe
+      bboxHelper = new THREE.Box3Helper(box, 0x334477);
+      bboxHelper.material.opacity = 0.25;
+      bboxHelper.material.transparent = true;
+      scene.add(bboxHelper);
+
+      rulerGroup = new THREE.Group();
+
+      // X = width (red)
+      const xF = new THREE.Vector3(box.min.x, box.min.y - offset, box.min.z - offset);
+      const xT = new THREE.Vector3(box.max.x, box.min.y - offset, box.min.z - offset);
+      addRulerLine(xF, xT, 0xff5555, tick).textContent = size.x.toFixed(1) + ' mm';
+
+      // Y = depth (green)
+      const yF = new THREE.Vector3(box.max.x + offset, box.min.y, box.min.z - offset);
+      const yT = new THREE.Vector3(box.max.x + offset, box.max.y, box.min.z - offset);
+      addRulerLine(yF, yT, 0x55cc55, tick).textContent = size.y.toFixed(1) + ' mm';
+
+      // Z = height (blue)
+      const zF = new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.min.z);
+      const zT = new THREE.Vector3(box.min.x - offset, box.min.y - offset, box.max.z);
+      addRulerLine(zF, zT, 0x5599ff, tick).textContent = size.z.toFixed(1) + ' mm';
+
+      scene.add(rulerGroup);
+
+      // Update the corner overlay
+      document.getElementById('dim-x').textContent = size.x.toFixed(1);
+      document.getElementById('dim-y').textContent = size.y.toFixed(1);
+      document.getElementById('dim-z').textContent = size.z.toFixed(1);
+      document.getElementById('dims-overlay').style.display = 'block';
+    }
+
+    function updateAnnotations() {
+      if (!annotLabels.length) return;
+      const W = renderer.domElement.clientWidth;
+      const H = renderer.domElement.clientHeight;
+      for (const {el, pos} of annotLabels) {
+        const v = pos.clone().project(camera);
+        if (v.z > 1) { el.style.display = 'none'; continue; }
+        const x = ( v.x * 0.5 + 0.5) * W;
+        const y = (-v.y * 0.5 + 0.5) * H;
+        el.style.display = 'block';
+        el.style.transform = `translate(-50%,-50%) translate(${x}px,${y}px)`;
+      }
+    }
+
+    // ── Render loop ───────────────────────────────────────────────────
+    (function loop() {
+      requestAnimationFrame(loop);
+      controls.update();
+      updateAnnotations();
+      renderer.render(scene, camera);
+    })();
+
+    // ── STL loader ────────────────────────────────────────────────────
     function loadSTL(url) {
       new THREE.STLLoader().load(url, geo => {
         if (mesh) { scene.remove(mesh); mesh.geometry.dispose(); }
@@ -326,35 +470,83 @@
         const center = box.getCenter(new THREE.Vector3());
         const size   = box.getSize(new THREE.Vector3());
         const maxD   = Math.max(size.x, size.y, size.z);
-        camera.position.set(center.x + maxD * 1.6, center.y + maxD * 1.6, center.z + maxD * 1.6);
+        camera.position.set(center.x + maxD*1.6, center.y + maxD*1.6, center.z + maxD*1.6);
         controls.target.copy(center);
         controls.update();
 
+        buildRulers(box);
         document.getElementById('empty').style.display = 'none';
         setStatus('Model loaded');
         spinner(false);
-      }, undefined, () => { setStatus('Preview load failed'); spinner(false); });
+      }, undefined, () => { setStatus('Preview error'); spinner(false); });
     }
 
-    (function loop() { requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
-
-    // ── App state ───────────────────────────────────────────────────
+    // ── App state ─────────────────────────────────────────────────────
     let sessionId    = null;
     let currentModel = null;
 
-    function spinner(on) {
-      document.getElementById('spinner').classList.toggle('active', on);
-    }
-    function setStatus(t) {
-      document.getElementById('status-text').textContent = t;
+    function spinner(on)  { document.getElementById('spinner').classList.toggle('active', on); }
+    function setStatus(t) { document.getElementById('status-text').textContent = t; }
+
+    function setDlButtons(d) {
+      document.getElementById('btn-stl').disabled  = false;
+      document.getElementById('btn-3mf').disabled  = !d.has_3mf;
+      document.getElementById('btn-step').disabled = !d.has_step;
+      document.getElementById('btn-glb').disabled  = !d.has_glb;
     }
 
-    // ── Chat ────────────────────────────────────────────────────────
+    // ── History panel ─────────────────────────────────────────────────
+    let modelHistory = [];   // full array from server
+
+    function toggleHistory() {
+      histOpen = !histOpen;
+      document.getElementById('history-list').style.display = histOpen ? 'block' : 'none';
+      document.getElementById('hist-arrow').textContent = histOpen ? '▾' : '▸';
+    }
+
+    function clearHistory() {
+      modelHistory = [];
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const panel = document.getElementById('history-panel');
+      const list  = document.getElementById('history-list');
+      if (!modelHistory.length) { panel.style.display = 'none'; return; }
+      panel.style.display = 'block';
+      list.innerHTML = '';
+      modelHistory.forEach((item, i) => {
+        const div = document.createElement('div');
+        div.className = 'history-item' + (item.model_id === currentModel ? ' active' : '');
+        div.innerHTML =
+          `<span class="hist-idx">${i+1}</span>` +
+          `<span class="hist-text">${esc(item.prompt)}</span>` +
+          `<span class="hist-time">${esc(item.ts)}</span>`;
+        div.addEventListener('click', () => restoreModel(item, div));
+        list.appendChild(div);
+      });
+      // scroll the last item into view
+      list.lastElementChild.scrollIntoView({ block: 'nearest' });
+    }
+
+    function restoreModel(item, el) {
+      currentModel = item.model_id;
+      // update active state
+      document.querySelectorAll('.history-item').forEach(e => e.classList.remove('active'));
+      el.classList.add('active');
+      // update download buttons
+      setDlButtons(item);
+      spinner(true);
+      setStatus('Restoring…');
+      loadSTL(`/model/${item.model_id}.stl`);
+    }
+
+    // ── Chat ──────────────────────────────────────────────────────────
     function onKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
     }
 
-    async function send() {
+    async function sendMsg() {
       const ta  = document.getElementById('prompt');
       const txt = ta.value.trim();
       if (!txt) return;
@@ -363,9 +555,11 @@
       addMsg(txt, 'user');
       setStatus('Generating…');
       spinner(true);
-      document.getElementById('send-btn').disabled = true;
-      document.getElementById('btn-stl').disabled  = true;
-      document.getElementById('btn-3mf').disabled  = true;
+      document.getElementById('send-btn').disabled  = true;
+      document.getElementById('btn-stl').disabled   = true;
+      document.getElementById('btn-3mf').disabled   = true;
+      document.getElementById('btn-step').disabled  = true;
+      document.getElementById('btn-glb').disabled   = true;
 
       try {
         const r = await fetch('/chat', {
@@ -378,27 +572,23 @@
 
         if (d.success) {
           currentModel = d.model_id;
-          addMsg(
-            `Model generated — loading preview…` +
-            codeBlock(d.code),
-            'ai'
-          );
+          modelHistory = d.history || [];
+          renderHistory();
+          addMsg('Model generated — loading preview…' + codeBlock(d.code), 'ai');
+          setDlButtons(d);
           loadSTL(`/model/${d.model_id}.stl`);
-          document.getElementById('btn-stl').disabled = false;
-          document.getElementById('btn-3mf').disabled = !d.has_3mf;
         } else {
+          if (d.history) { modelHistory = d.history; renderHistory(); }
           addMsg(
             `<strong style="color:var(--red)">Error:</strong> ${esc(d.error)}` +
             (d.code ? codeBlock(d.code) : ''),
             'ai', true
           );
-          setStatus('Error');
-          spinner(false);
+          setStatus('Error'); spinner(false);
         }
       } catch (e) {
         addMsg(`Network error: ${esc(e.message)}`, 'ai', true);
-        setStatus('Network error');
-        spinner(false);
+        setStatus('Network error'); spinner(false);
       } finally {
         document.getElementById('send-btn').disabled = false;
       }
@@ -415,14 +605,13 @@
 
     function codeBlock(code) {
       const id = 'cb' + Math.random().toString(36).slice(2);
-      return `
-        <div class="code-wrap">
-          <div class="code-header">
-            <span>cadquery</span>
-            <button onclick="copyCode('${id}')">Copy</button>
-          </div>
-          <pre id="${id}">${esc(code)}</pre>
-        </div>`;
+      return `<div class="code-wrap">
+        <div class="code-header">
+          <span>cadquery</span>
+          <button onclick="copyCode('${id}')">Copy</button>
+        </div>
+        <pre id="${id}">${esc(code)}</pre>
+      </div>`;
     }
 
     function copyCode(id) {

@@ -1,5 +1,6 @@
 import os
 import uuid
+import datetime
 import cadquery as cq
 from cadquery import exporters
 from flask import Flask, request, jsonify, render_template, send_file
@@ -13,7 +14,6 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 def _make_client() -> anthropic.Anthropic:
     if api_key := os.environ.get("ANTHROPIC_API_KEY"):
         return anthropic.Anthropic(api_key=api_key)
-    # Fallback: Claude Code remote session token (bearer auth)
     token_file = os.environ.get(
         "CLAUDE_SESSION_INGRESS_TOKEN_FILE",
         "/home/claude/.claude/remote/.session_ingress_token",
@@ -33,7 +33,7 @@ You are a CadQuery expert. When the user describes a 3D model, respond with Pyth
 Rules:
 - Import cadquery as cq at the top of the code
 - Assign the final 3D solid to a variable called `result` (a CadQuery Workplane)
-- Only use cadquery — no file I/O, os, sys, subprocess, or other imports
+- Only use cadquery and math — no file I/O, os, sys, subprocess, or other imports
 - Write clean, readable parametric code with descriptive variable names
 - On follow-up requests ("make it bigger", "add a hole"), rewrite the full model from scratch with the changes applied
 
@@ -57,8 +57,9 @@ result = (
 )
 ```"""
 
-# Session history keyed by session_id
+# Per-session conversation history and model history
 _sessions: dict[str, list] = {}
+_history:  dict[str, list] = {}  # session_id → [{model_id, prompt, ts, has_*}]
 
 _ALLOWED_IMPORTS = {"cadquery", "math"}
 
@@ -67,13 +68,12 @@ def _restricted_import(name, *args, **kwargs):
         raise ImportError(f"import of '{name}' is not allowed in generated code")
     return __import__(name, *args, **kwargs)
 
-# Allowed builtins for exec sandbox
 _SAFE_BUILTINS = {
     "range": range, "len": len, "int": int, "float": float, "str": str,
     "bool": bool, "list": list, "dict": dict, "tuple": tuple, "set": set,
     "abs": abs, "max": max, "min": min, "round": round, "sum": sum,
     "zip": zip, "enumerate": enumerate, "map": map, "filter": filter,
-    "sorted": sorted, "reversed": reversed,
+    "sorted": sorted, "reversed": reversed, "pow": pow,
     "True": True, "False": False, "None": None, "print": print,
     "__import__": _restricted_import,
 }
@@ -99,20 +99,41 @@ def _run_cadquery(code: str):
     return namespace["result"]
 
 
-def _try_3mf(result, model_id: str) -> bool:
-    path = os.path.join(MODELS_DIR, f"{model_id}.3mf")
+def _try_export(result, model_id: str, ext: str) -> bool:
+    """Export result to the given extension; return True if a non-empty file was created."""
+    path = os.path.join(MODELS_DIR, f"{model_id}.{ext}")
     try:
         exporters.export(result, path)
-        return os.path.exists(path) and os.path.getsize(path) > 0
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            return True
     except Exception:
         pass
+    return False
+
+
+def _try_3mf(result, model_id: str) -> bool:
+    if _try_export(result, model_id, "3mf"):
+        return True
     # Fallback: convert STL → 3MF via trimesh
     try:
         import trimesh  # type: ignore
         stl_path = os.path.join(MODELS_DIR, f"{model_id}.stl")
         mesh = trimesh.load(stl_path)
-        mesh.export(path)
-        return os.path.exists(path) and os.path.getsize(path) > 0
+        mesh.export(os.path.join(MODELS_DIR, f"{model_id}.3mf"))
+        return os.path.exists(os.path.join(MODELS_DIR, f"{model_id}.3mf"))
+    except Exception:
+        return False
+
+
+def _try_glb(model_id: str) -> bool:
+    """Convert the already-exported STL to GLB for Blender import."""
+    try:
+        import trimesh  # type: ignore
+        stl_path = os.path.join(MODELS_DIR, f"{model_id}.stl")
+        glb_path = os.path.join(MODELS_DIR, f"{model_id}.glb")
+        mesh = trimesh.load(stl_path)
+        mesh.export(glb_path)
+        return os.path.exists(glb_path) and os.path.getsize(glb_path) > 0
     except Exception:
         return False
 
@@ -131,40 +152,58 @@ def chat():
     if not message:
         return jsonify({"error": "empty message"}), 400
 
-    history = _sessions.setdefault(session_id, [])
-    history.append({"role": "user", "content": message})
+    conv = _sessions.setdefault(session_id, [])
+    conv.append({"role": "user", "content": message})
 
     response = client.messages.create(
         model="claude-opus-4-8",
         max_tokens=4096,
         system=SYSTEM_PROMPT,
-        messages=history,
+        messages=conv,
     )
     reply = response.content[0].text
-    history.append({"role": "assistant", "content": reply})
+    conv.append({"role": "assistant", "content": reply})
 
     code = _extract_code(reply)
     model_id = str(uuid.uuid4())
 
     try:
         result = _run_cadquery(code)
+
         stl_path = os.path.join(MODELS_DIR, f"{model_id}.stl")
         exporters.export(result, stl_path)
-        has_3mf = _try_3mf(result, model_id)
+
+        has_3mf  = _try_3mf(result, model_id)
+        has_step = _try_export(result, model_id, "step")
+        has_glb  = _try_glb(model_id)
+
+        entry = {
+            "model_id": model_id,
+            "prompt":   message[:90] + ("…" if len(message) > 90 else ""),
+            "ts":       datetime.datetime.now().strftime("%H:%M"),
+            "has_3mf":  has_3mf,
+            "has_step": has_step,
+            "has_glb":  has_glb,
+        }
+        _history.setdefault(session_id, []).append(entry)
 
         return jsonify({
-            "success": True,
+            "success":    True,
             "session_id": session_id,
-            "model_id": model_id,
-            "code": code,
-            "has_3mf": has_3mf,
+            "model_id":   model_id,
+            "code":       code,
+            "has_3mf":    has_3mf,
+            "has_step":   has_step,
+            "has_glb":    has_glb,
+            "history":    _history[session_id],
         })
     except Exception as exc:
         return jsonify({
-            "success": False,
+            "success":    False,
             "session_id": session_id,
-            "code": code,
-            "error": str(exc),
+            "code":       code,
+            "error":      str(exc),
+            "history":    _history.get(session_id, []),
         })
 
 
@@ -176,16 +215,25 @@ def serve_stl(model_id: str):
     return send_file(path, mimetype="model/stl")
 
 
+_MIME = {
+    "stl":  "model/stl",
+    "3mf":  "model/3mf",
+    "step": "application/step",
+    "glb":  "model/gltf-binary",
+}
+
 @app.route("/download/<model_id>/<fmt>")
 def download(model_id: str, fmt: str):
-    if fmt not in ("stl", "3mf"):
+    if fmt not in _MIME:
         return "unsupported format", 400
     path = os.path.join(MODELS_DIR, f"{model_id}.{fmt}")
     if not os.path.exists(path):
         return "not found", 404
-    return send_file(path, as_attachment=True, download_name=f"model.{fmt}")
+    return send_file(path, as_attachment=True,
+                     download_name=f"model.{fmt}",
+                     mimetype=_MIME[fmt])
 
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, port=port)
+    app.run(debug=False, use_reloader=False, port=port, threaded=True)
