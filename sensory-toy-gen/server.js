@@ -32,7 +32,7 @@ Age suitability and developmental skills it supports.
 Any important safety considerations.`
 
 app.post('/api/generate', async (req, res) => {
-  const { prompt } = req.body
+  const { prompt, previousToys } = req.body
 
   if (!prompt || !prompt.trim()) {
     return res.status(400).json({ error: 'Prompt is required' })
@@ -46,12 +46,19 @@ app.post('/api/generate', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
 
+  let fullPrompt = prompt
+  if (previousToys && previousToys.length > 0) {
+    fullPrompt +=
+      '\n\nIMPORTANT: You MUST NOT generate any of the following previously created toys. Create something completely different:\n' +
+      previousToys.map(t => `- ${t}`).join('\n')
+  }
+
   try {
     const stream = client.messages.stream({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1500,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content: fullPrompt }]
     })
 
     for await (const event of stream) {

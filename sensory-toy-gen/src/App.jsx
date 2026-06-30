@@ -11,6 +11,16 @@ const SENSORY_OPTIONS = [
 ]
 const MATERIAL_PREFS = ['Household items', 'Craft supplies', 'Sensory beads/fillers', 'Fabric', 'Foam/sponge', 'Natural materials']
 
+const HISTORY_KEY = 'sensory-toy-history'
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]') } catch { return [] }
+}
+
+function saveHistory(names) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(names))
+}
+
 export default function App() {
   const [description, setDescription] = useState('')
   const [ageRange, setAgeRange] = useState('2-4')
@@ -19,6 +29,7 @@ export default function App() {
   const [output, setOutput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [toyHistory, setToyHistory] = useState(loadHistory)
 
   const toggleItem = (value, list, setList) => {
     setList(prev =>
@@ -40,6 +51,22 @@ export default function App() {
     return parts.join(' ')
   }
 
+  const addToHistory = (fullOutput) => {
+    const match = fullOutput.match(/## 🧸 Toy Name\s*\n([^\n]+)/)
+    if (!match) return
+    const name = match[1].trim()
+    setToyHistory(prev => {
+      const updated = [...prev, name]
+      saveHistory(updated)
+      return updated
+    })
+  }
+
+  const clearHistory = () => {
+    setToyHistory([])
+    saveHistory([])
+  }
+
   const generate = async () => {
     const prompt = buildPrompt()
     setLoading(true)
@@ -50,7 +77,7 @@ export default function App() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, previousToys: toyHistory })
       })
 
       if (!response.ok) {
@@ -60,6 +87,7 @@ export default function App() {
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let fullOutput = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -73,12 +101,17 @@ export default function App() {
           try {
             const parsed = JSON.parse(data)
             if (parsed.error) throw new Error(parsed.error)
-            if (parsed.text) setOutput(prev => prev + parsed.text)
+            if (parsed.text) {
+              fullOutput += parsed.text
+              setOutput(prev => prev + parsed.text)
+            }
           } catch (e) {
             if (e.message !== 'Unexpected end of JSON input') throw e
           }
         }
       }
+
+      addToHistory(fullOutput)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -157,6 +190,13 @@ export default function App() {
               rows={3}
             />
           </section>
+
+          {toyHistory.length > 0 && (
+            <div className="history-notice">
+              <span>🔁 {toyHistory.length} toy{toyHistory.length !== 1 ? 's' : ''} generated — avoiding repeats</span>
+              <button className="clear-history-btn" onClick={clearHistory}>Clear</button>
+            </div>
+          )}
 
           <button
             className="generate-btn"

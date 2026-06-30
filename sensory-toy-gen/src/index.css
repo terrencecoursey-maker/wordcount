@@ -132,6 +132,32 @@ textarea::placeholder {
   color: var(--text-muted);
 }
 
+.history-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f0eeff;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--primary-dark);
+}
+
+.clear-history-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  font-family: inherit;
+  padding: 0;
+}
+
+.clear-history-btn:hover {
+  color: var(--error);
+}
+
 .generate-btn {
   display: flex;
   align-items: center;
